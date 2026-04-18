@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power Ups Business Suite | Full System</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #008080;
+            --accent: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --bg: #f4f7f6;
+            --text-dark: #2c3e50;
+            --sidebar: #1a252f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background: var(--bg);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 1px solid #34495e;
+            text-align: center;
+        }
+
+        .nav-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            color: #bdc3c7;
+            text-decoration: none;
+        }
+
+            .nav-item:hover, .nav-item.active {
+                background: #34495e;
+                color: white;
+            }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        section {
+            padding: 25px;
+            display: none;
+        }
+
+            section.active {
+                display: block;
+            }
+
+        .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 5px;
+        }
+
+        .dash-card {
+            background: White;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+            .dash-card span {
+                font-size: 15px;
+                color: #7f8c8d;
+                font-weight: 600;
+                text-transform: capitalize;
+            }
+
+            .dash-card h3 {
+                margin: 8px 0 0 0;
+                font-size: 20px;
+                color: var(--text-dark);
+            }
+
+        .filter-bar {
+            background: white;
+            padding: 15px 25px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid #ddd;
+            align-items: center;
+        }
+
+            .filter-bar select {
+                padding: 8px;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+                font-size: 13px;
+            }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-container th,
+        .table-container td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 12px;
+        }
+
+        .sticky-top-group {
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+            .form-row input, .form-row select {
+                padding: 10px;
+                border-radius: 6px;
+                border: 1px solid #ddd;
+                flex: 1;
+                min-width: 120px;
+                align-items: center;
+            }
+
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-box {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 220px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+            .search-box:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 5px rgba(0, 128, 128, 0.2);
+            }
+
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        /* This ensures the button reacts when the mouse points at it */
+        .primary-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease, transform 0.1s ease; /* Smooth transition */
+        }
+
+            .primary-btn:hover {
+                background: #006666; /* A slightly darker teal */
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Adds a subtle lift effect */
+            }
+
+            .primary-btn:active {
+                transform: scale(0.98); /* Slight "click" feel when pressed */
+            }
+
+        .btn-export {
+            background: #5d6d7e;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .btn-csv {
+            background: #5d6d7e;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-pdf {
+            background: #c0392b;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+            .btn-csv:hover, .btn-pdf:hover {
+                opacity: 0.8;
+            }
+
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+            .password-wrapper input {
+                width: 100%;
+                padding-right: 60px !important;
+            }
+
+        .toggle-pass {
+            position: absolute;
+            right: 10px;
+            background: #eee;
+            border: 1px solid #ddd;
+            padding: 3px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+            align-items: center;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        #authWrapper {
+            position: fixed;
+            inset: 0;
+            background: var(--sidebar);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .auth-box {
+            background: #2c3e50;
+            padding: 40px;
+            border-radius: 12px;
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+            .auth-box input {
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border-radius: 6px;
+                border: none;
+                box-sizing: border-box;
+            }
+
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none;
+        }
+
+
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+            .password-wrapper span {
+                position: absolute;
+                right: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                cursor: pointer;
+                z-index: 10;
+                background: white;
+                padding-left: 5px;
+            }
+        /* Modern Input Styling */
+        .input-field-modern {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #dcdfe6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            outline: none;
+            background: #fafafa;
+        }
+
+            .input-field-modern:focus {
+                border-color: var(--primary);
+                background: #fff;
+                box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+            }
+
+        /* Password Wrapper and Toggle */
+        .password-wrapper-modern {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-pass-modern {
+            position: absolute;
+            right: 12px;
+            background: #fff;
+            border: 1px solid #dcdfe6;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 800;
+            color: #909399;
+            transition: all 0.2s;
+        }
+
+            .toggle-pass-modern:hover {
+                color: var(--primary);
+                border-color: var(--primary);
+            }
+
+        /* Centered Primary Button with Hover */
+        .primary-btn-modern {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+            .primary-btn-modern:hover {
+                background: #006666; /* Darker Teal */
+                box-shadow: 0 4px 12px rgba(0, 128, 128, 0.2);
+                transform: translateY(-1px);
+            }
+
+            .primary-btn-modern:active {
+                transform: translateY(0);
+            }
+    </style>
+</head>
+<body>
+
+    <div id="authWrapper">
+        <div class="auth-box" id="loginBox">
+            <h2>Power Ups Login</h2>
+            <input type="text" id="userIn" placeholder="Username" onkeypress="handleEnter(event)">
+            <div class="password-wrapper">
+                <input type="password" id="passIn" placeholder="Password" onkeypress="handleEnter(event)">
+                <span onclick="togglePasswordVisibility('passIn', this)">☀️</span>
+            </div>
+            <button class="primary-btn" style="width:100%" onclick="handleLogin()">Login</button>
+            <p id="authError" style="color:var(--danger); display:none; font-size:12px; margin-top:10px;">Invalid or Unapproved Account</p>
+            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(true)">Don't have an account? Register</p>
+        </div>
+        <div class="auth-box" id="regBox" style="display:none;">
+            <h2>Register Account</h2>
+            <input type="text" id="regUser" placeholder="Desired Username" onkeypress="handleRegEnter(event)">
+            <input type="password" id="regPass" placeholder="Password" onkeypress="handleRegEnter(event)">
+            <button class="primary-btn" style="width:100%" onclick="handleReg()">Submit Request</button>
+            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(false)">Back to Login</p>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="sidebar-header">POWER UPS</div>
+        <nav id="mainNav">
+            <a class="nav-item active" data-sec="dashSec">📊 Dashboard</a>
+            <a class="nav-item" data-sec="saleSec">💰 Sales</a>
+            <a class="nav-item" data-sec="invSec">📦 Inventory</a>
+            <a class="nav-item" data-sec="lowSec">⚠️ Low Stocks</a>
+            <a class="nav-item" data-sec="expSec">🧾 Expenses</a>
+            <a class="nav-item" data-sec="delSec">📂 Archive</a>
+            <a class="nav-item" id="adminTab" data-sec="adminSec" style="display:none;">🛡️ Approvals</a>
+            <a class="nav-item" data-sec="settingsSec">⚙️ Account</a>
+        </nav>
+        <div style="margin-top:auto; padding:20px;">
+            <button class="btn-sm" style="background:var(--danger); width:100%; padding:12px; font-size:12px; " onclick="handleLogout()">End Session</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="filter-bar" id="globalFilter" style="display:flex; align-items:center; gap:10px; padding:10px;">
+            <span style="font-weight:700; font-size:14px; color:var(--primary);">Filter Dashboard:</span>
+            <label style="font-size:14px;">From:</label>
+            <input type="date" id="startDate" onchange="updateDash()">
+            <label style="font-size:14px;">To:</label>
+            <input type="date" id="endDate" onchange="updateDash()">
+            <button class="btn-export" style="margin-left:auto;" onclick="exportData('all')">📥 Export CSV</button>
+            <button class="btn-export" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;" onclick="exportDashboardPDF()">📄 Export PDF</button>
+        </div>
+
+        <section id="dashSec" class="active">
+            <div class="dash-grid">
+                <div class="dash-card" style="border-left: 5px solid var(--primary);"><span>Revenue</span><h3 id="dRev">₱0.00</h3></div>
+                <div class="dash-card" style="border-left: 5px solid var(--accent);"><span>Net Profit</span><h3 id="dNet">₱0.00</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #e74c3c;"><span>Expenses</span><h3 id="dExp">₱0.00</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #fbef7f;"><span>Profit Margin %</span><h3 id="dMargin">0%</h3></div>
+            </div>
+            <div class="dash-grid" style="margin-top: 15px;">
+                <div class="dash-card" style="border-left: 5px solid #f1c40f;"><span>Total Transactions</span><h3 id="dCount">0</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #e67e22;"><span>Best Selling Item</span><h3 id="dBest">None</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #8e44ad;"><span>Daily Average</span><h3 id="dAvg">₱0.00</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #3f51b5;"><span>Sales Peak Day</span><h3 id="dPeak">None</h3></div>
+            </div>
+            <div class="dash-grid" style="margin-top: 15px;">
+                <div class="dash-card" style="border-left: 5px solid #f39c12;"><span>Breakeven Status</span><h3 id="dGoal">...</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #d35400;"><span>Critical Restock</span><h3 id="dTimer">None</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #3498db;"><span>Projected Income</span><h3 id="projIncome">₱0.00</h3></div>
+                <div class="dash-card" style="border-left: 5px solid #9b59b6;"><span>Asset Value</span><h3 id="headTotalInvDash">₱0.00</h3></div>
+            </div>
+            <div style="background:white; padding:25px; border-radius:16px; border:1px solid #ddd; margin-top:20px; height:350px;">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </section>
+
+        <section id="saleSec">
+            <div class="sticky-top-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Sales Entry</h2>
+                    <div id="headTotalSales" style="font-weight:bold; color:var(--primary);">₱0.00</div>
+                </div>
+                <form id="saleForm">
+                    <input type="hidden" id="editSaleIdx" value="-1">
+                    <div class="form-row">
+                        <input type="date" id="sDate" required>
+                        <select id="sName" required><option value="">Product Name</option></select>
+                        <select id="sID" required><option value="">Product ID</option></select>
+                        <input type="number" id="sQty" placeholder="Qty" min="1" required>
+                        <input type="number" id="sDisc" placeholder="Discount %">
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="primary-btn" id="sBtn">Record Sale</button>
+                        <input type="text" class="search-box" placeholder="Search Sales..." onkeyup="filterTable('saleTableBody', this.value)">
+                        <button class="btn-export" style="margin-left:auto;" onclick="exportData('Sales')">📥 Export CSV</button>
+                        <button type="button" class="btn-pdf" onclick="exportPDF('sales')">📄 Export PDF</button>
+                    </div>
+                </form>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Invoice</th><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Actions</th></tr></thead>
+                    <tbody id="saleTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="invSec">
+            <div class="sticky-top-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Inventory Management</h2>
+                    <div id="headTotalInv" style="font-weight:bold;">₱0.00</div>
+                </div>
+                <form id="invForm">
+                    <input type="hidden" id="editInvIdx" value="-1">
+                    <div class="form-row">
+                        <input type="text" id="iName" placeholder="Product Name" required>
+                        <input type="number" id="iStock" placeholder="Stock" required>
+                        <input type="number" id="iBuy" step="0.01" placeholder="Cost Price" required>
+                        <input type="number" id="iSell" step="0.01" placeholder="Selling Price" required>
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="primary-btn" id="iBtn">Update Stock</button>
+                        <input type="text" class="search-box" placeholder="Search Inventory..." onkeyup="filterTable('invTableBody', this.value)">
+                        <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('inv')">📥 Export CSV</button>
+                        <button type="button" class="btn-pdf" onclick="exportPDF('inv')">📄 Export PDF</button>
+                    </div>
+                </form>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>SKU</th><th>Name</th><th>Stock</th><th>Buy</th><th>Sell</th><th>Actions</th></tr></thead>
+                    <tbody id="invTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="lowSec">
+            <div class="sticky-top-group">
+                <div style="display:flex; justify-content:space-between;">
+                    <h2>Low Stocks Alert</h2>
+                    <h2 id="headTotalLow">Low Stock Items: 0</h2>
+                </div>
+                <div class="action-bar">
+                    <input type="text" class="search-box" placeholder="Search Low Stocks..." onkeyup="filterTable('lowTableBody', this.value)">
+                    <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('low')">📥 Export CSV</button>
+                    <button type="button" class="btn-pdf" onclick="exportPDF('low')">📄 Export PDF</button>
+                </div>
+            </div> <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Product Name</th>
+                            <th>Current Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lowTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="expSec">
+            <div class="sticky-top-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Expenses</h2>
+                    <div id="headTotalExp" style="font-weight:bold; color:var(--danger);">₱0.00</div>
+                </div>
+                <form id="expForm">
+                    <input type="hidden" id="editExpIdx" value="-1">
+                    <div class="form-row">
+                        <input type="date" id="eDate" required>
+                        <input type="text" id="eDesc" placeholder="Description" required>
+                        <input type="number" id="eAmt" step="0.01" placeholder="Amount" required>
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="primary-btn" id="eBtn">Record Expense</button>
+                        <input type="text" id="expSearch" class="search-box" placeholder="Search Expenses..." onkeyup="filterTable('expTableBody', this.value)">
+                        <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('exp')">📥 Export CSV</button>
+                        <button type="button" class="btn-pdf" onclick="exportPDF('exp')">📄 Export PDF</button>
+                    </div>
+                </form>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
+                    <tbody id="expTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="delSec">
+            <h2>Archive & Recovery</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Type</th><th>Ref</th><th>Details</th><th>Deleted By</th><th>Actions</th></tr></thead>
+                    <tbody id="delTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="adminSec">
+            <h2>User Management</h2>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>User</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="adminTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="settingsSec">
+            <div style="display: flex; justify-content: center; align-items: flex-start; padding-top: 50px;">
+                <div class="dash-card" style="width: 100%; max-width: 480px; padding: 40px; border: 1px solid #e0e6ed; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <span style="color: var(--primary); font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 8px;">
+                            Account Security
+                        </span>
+                        <h3 style="font-size: x; color: var(--sidebar); margin: 0;">Update Credentials</h3>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label style="display:block; font-size:11px; font-weight:700; color:#7f8c8d; margin-bottom:8px; text-transform: uppercase;">Username</label>
+                        <input type="text" id="setU" class="input-field-modern" placeholder="Enter username">
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label style="display:block; font-size:11px; font-weight:700; color:#7f8c8d; margin-bottom:8px; text-transform: uppercase;">Current Password</label>
+                        <div class="password-wrapper-modern">
+                            <input type="password" id="oldP" class="input-field-modern" placeholder="Verify old password">
+                            <button type="button" class="toggle-pass-modern" onclick="togglePassView('oldP', this)">SHOW</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 25px;">
+                        <label style="display:block; font-size:11px; font-weight:700; color:#7f8c8d; margin-bottom:8px; text-transform: uppercase;">New Password</label>
+                        <div class="password-wrapper-modern">
+                            <input type="password" id="setP" class="input-field-modern" placeholder="Leave blank if no change">
+                            <button type="button" class="toggle-pass-modern" onclick="togglePassView('setP', this)">SHOW</button>
+                        </div>
+                    </div>
+
+                    <button class="primary-btn-modern" onclick="updateAccount()">
+                        Save Changes
+                    </button>
+
+                    <div id="settingsMsg" style="font-size: 13px; margin-top: 20px; text-align: center; padding: 12px; border-radius: 8px; display: none;"></div>
+                </div>
+            </div>
+        </section>
+    </div> ```
+
+    <script>
+        // Firebase Configuration (Fixed Syntax)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB4yzncDbSE9iEBtMSuEYOcYmbHs2a2dQM",
+            authDomain: "powerups-business-suite-fee3f.firebaseapp.com",
+            databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "powerups-business-suite-fee3f",
+            storageBucket: "powerups-business-suite-fee3f.firebasestorage.app",
+            messagingSenderId: "45864521061",
+            appId: "1:45864521061:web:4924fee18bf285391ca58c",
+            measurementId: "G-SBPCRQNDCF"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+
+        // 1. GLOBAL STATE & CONFIG
+        let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
+        let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
+        let sessionUser = null;
+        let myChart = null;
+
+
+        // ==========================================
+        // 2. CORE UTILITIES
+        // ==========================================
+        const fCurrency = (v) => "₱" + parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+        const pad = (n, s) => n.toString().padStart(s, '0');
+
+        const save = () => {
+            localStorage.setItem('Powerups21_db', JSON.stringify(db));
+            localStorage.setItem('Powerups21_users', JSON.stringify(users));
+        };
+        const fDate = (d) => {
+            if (!d) return "-";
+            const [y, m, dDay] = d.split('-');
+            return `${m}/${dDay}/${y}`;
+        };
+
+        function init() {
+            const sd = localStorage.getItem('Powerups21_db'), su = localStorage.getItem('Powerups21_users');
+            if (sd) db = JSON.parse(sd);
+            if (su) users = JSON.parse(su);
+
+            migrateData();
+            renderExpenses();
+            setDefaultDates();
+
+            if (document.getElementById('fYear')) {
+                handleMonthYearChange();
+            }
+        }
+
+        function migrateData() {
+            db.inv.forEach(i => { if (!i.id) i.id = "P" + pad(db.count.sku++, 6); });
+            db.sales.forEach(s => { if (!s.invNo) s.invNo = "INV-" + pad(db.count.inv++, 6); });
+            save();
+        }
+
+        // ==========================================
+        // 3. DASHBOARD & ANALYTICS
+        // ==========================================
+        function updateDash() {
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+
+            // Unified Filter Logic: Shows "All-Time" if inputs are blank
+            const filter = (arr) => arr.filter(x => {
+                if (!startVal || !endVal) return true;
+                return x.date >= startVal && x.date <= endVal;
+            });
+
+            const fs = filter(db.sales), fe = filter(db.exp);
+            const rev = fs.reduce((a, b) => a + b.total, 0);
+            const cogs = fs.reduce((a, b) => a + (b.qty * (b.cost || 0)), 0);
+            const op = fe.reduce((a, b) => a + b.amt, 0);
+            const netProfit = rev - cogs - op;
+
+            // Smart Date Range Engine
+            let days = 1;
+            if (startVal && endVal) {
+                const start = new Date(startVal);
+                const end = new Date(endVal);
+                days = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+            } else if (db.sales.length > 0) {
+                const allDates = db.sales.map(s => new Date(s.date));
+                const firstSale = new Date(Math.min(...allDates));
+                days = Math.ceil(Math.abs(new Date() - firstSale) / (1000 * 60 * 60 * 24)) + 1;
+            }
+
+            // Metrics
+            document.getElementById('dAvg').innerText = fCurrency(rev / days);
+            document.getElementById('dCount').innerText = fs.length;
+
+            // Profitability
+            const marginEl = document.getElementById('dMargin');
+            const mPct = rev > 0 ? ((netProfit / rev) * 100) : 0;
+            marginEl.innerText = mPct.toFixed(2) + "%";
+            marginEl.style.color = mPct > 0 ? "#27ae60" : (mPct < 0 ? "#e74c3c" : "black");
+
+            const totalCosts = cogs + op;
+            const goalEl = document.getElementById('dGoal');
+            if (rev >= totalCosts && totalCosts > 0) {
+                goalEl.innerText = "Profitable!";
+                goalEl.style.color = "#27ae60";
+            } else {
+                const remaining = totalCosts - rev;
+                goalEl.innerText = totalCosts === 0 ? "No Expenses" : `₱${remaining.toLocaleString()} more`;
+                goalEl.style.color = "#e67e22";
+            }
+
+            // Peak Analysis
+            let dailyTotals = {};
+            let itemMap = {};
+            fs.forEach(s => {
+                dailyTotals[s.date] = (dailyTotals[s.date] || 0) + s.total;
+                itemMap[s.name] = (itemMap[s.name] || 0) + s.qty;
+            });
+
+            let peakDate = "None", peakAmt = 0;
+            for (const d in dailyTotals) { if (dailyTotals[d] > peakAmt) { peakAmt = dailyTotals[d]; peakDate = d; } }
+            document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
+
+            let bestItem = "None", maxQty = 0;
+            for (const item in itemMap) { if (itemMap[item] > maxQty) { maxQty = itemMap[item]; bestItem = item; } }
+            document.getElementById('dBest').innerText = bestItem !== "None" ? `${bestItem} (${maxQty})` : "None";
+
+            // Forecast & Financials
+            let criticalItem = "None";
+            let shortestRunway = Infinity;
+            db.inv.forEach(item => {
+                const soldInRange = fs.filter(s => s.name === item.name).reduce((a, b) => a + b.qty, 0);
+                const velocity = soldInRange / days;
+                if (velocity > 0) {
+                    const runway = item.stock / velocity;
+                    if (runway < shortestRunway) {
+                        shortestRunway = runway;
+                        criticalItem = `${item.name} (~${Math.floor(runway)} days)`;
+                    }
+                }
+            });
+            document.getElementById('dTimer').innerText = criticalItem;
+
+            document.getElementById('dRev').innerText = fCurrency(rev);
+            const netEl = document.getElementById('dNet');
+            netEl.innerText = fCurrency(netProfit);
+            netEl.style.color = netProfit > 0 ? "#27ae60" : (netProfit < 0 ? "#e74c3c" : "black");
+
+            const expEl = document.getElementById('dExp');
+            expEl.innerText = fCurrency(op);
+            expEl.style.color = "#e74c3c";
+
+            document.getElementById('projIncome').innerText = fCurrency(db.inv.reduce((a, b) => a + (b.stock * (b.sell - b.buy)), 0));
+            document.getElementById('headTotalInvDash').innerText = fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
+
+            renderChart(fs, fe);
+        }
+
+        function renderChart(filteredSales, filteredExpenses) {
+            const chartEl = document.getElementById('mainChart');
+            if (!chartEl) return;
+            const ctx = chartEl.getContext('2d');
+
+            let dailyData = {};
+            (filteredSales || []).forEach(s => {
+                if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
+                dailyData[s.date].rev += s.total;
+            });
+            (filteredExpenses || []).forEach(e => {
+                if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
+                dailyData[e.date].exp += e.amt;
+            });
+
+            const lbls = Object.keys(dailyData).sort();
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: lbls,
+                    datasets: [
+                        {
+                            label: 'Revenue',
+                            data: lbls.map(l => dailyData[l].rev),
+                            borderColor: '#008080',
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Expenses',
+                            data: lbls.map(l => dailyData[l].exp),
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            tension: 0.3,
+                            borderWidth: 3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: (v) => '₱' + v.toLocaleString() } }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // 4. UI RENDERING & SYNC
+        // ==========================================
+        function sync() {
+            save();
+            updateDash();
+            updateDropdowns();
+            const r = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+            r('saleTableBody', db.sales.map((s, i) => `<tr><td>${s.invNo}</td><td>${fDate(s.date)}</td><td>${s.name}</td><td>${s.qty}</td><td>${fCurrency(s.total)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editSale(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('sales',${i})">Del</button></td></tr>`).join(''));
+            r('invTableBody', db.inv.map((v, i) => `<tr><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>${fCurrency(v.buy)}</td><td>${fCurrency(v.sell)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editInv(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('inv',${i})">Del</button></td></tr>`).join(''));
+            renderExpenses();
+            r('delTableBody', db.archive.map((a, i) => `<tr><td>${a.type}</td><td>${a.data.id || a.data.invNo}</td><td>${a.data.name || a.data.desc}</td><td>${a.deletedBy}</td><td><button class="btn-sm" style="background:var(--accent)" onclick="restore(${i})">Restore</button><button class="btn-sm" style="background:var(--danger)" onclick="purge(${i})">Purge</button></td></tr>`).join(''));
+            r('adminTableBody', users.map((u, i) => `<tr><td>${u.u}</td><td>${u.approved ? 'Active' : 'Pending'}</td><td>${!u.approved ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>` : ''} ${u.role !== 'admin' ? `<button class="btn-sm" style="background:var(--danger)" onclick="delUser(${i})">Remove Access</button>` : ''}</td></tr>`).join(''));
+
+            r('lowTableBody', db.inv.filter(v => v.stock < 10).map(v => `
+                        <tr style="color:black;">
+                            <td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>Reorder</td>
+                        </tr>`).join(''));
+
+            document.getElementById('headTotalSales').innerText = "Total Sales: " + fCurrency(db.sales.reduce((a, b) => a + b.total, 0));
+            document.getElementById('headTotalInv').innerText = "Asset Value: " + fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
+            document.getElementById('headTotalExp').innerText = "Total Expense: " + fCurrency(db.exp.reduce((a, b) => a + b.amt, 0));
+            document.getElementById('headTotalLow').innerText = "Low Stock Items: " + db.inv.filter(v => v.stock < 10).length;
+        }
+
+        function renderExpenses() {
+            const tbody = document.getElementById("expTableBody");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            if (!db.exp || db.exp.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4">No expenses found</td></tr>`;
+                return;
+            }
+            db.exp.forEach((e, i) => {
+                tbody.innerHTML += `<tr>
+                            <td>${fDate(e.date)}</td><td>${e.desc}</td><td>${fCurrency(e.amt)}</td>
+                            <td>
+                                <button class="btn-sm" style="background:var(--warning)" onclick="editExp(${i})">Edit</button>
+                                <button class="btn-sm" style="background:var(--danger)" onclick="archive('exp', ${i})">Del</button>
+                            </td>
+                        </tr>`;
+            });
+        }
+
+        function setDefaultDates() {
+            const now = new Date().toISOString().split('T')[0];
+            ['sDate', 'eDate'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = now;
+            });
+        }
+
+        function updateDropdowns() {
+            const h = (id, list) => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '<option value="">Select</option>' + list.map(i => `<option value="${i.id}">${id === 'sID' ? i.id : i.name}</option>`).join('');
+            };
+            h('sID', db.inv); h('sName', db.inv);
+        }
+
+        function filterTable(tbody, q) {
+            document.querySelectorAll(`#${tbody} tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
+        }
+
+        // ==========================================
+        // 5. TRANSACTION HANDLERS (FORMS)
+        // ==========================================
+        document.getElementById('saleForm').onsubmit = (e) => {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('editSaleIdx').value);
+            const sku = document.getElementById('sID').value;
+            const qty = parseInt(document.getElementById('sQty').value);
+            const prod = db.inv.find(i => i.id === sku);
+            const disc = parseFloat(document.getElementById('sDisc').value || 0);
+            const total = (qty * prod.sell) * (1 - (disc / 100));
+
+            if (idx === -1) {
+                if (prod.stock < qty) return alert("Low Stock");
+                prod.stock -= qty;
+                db.sales.push({ invNo: "INV-" + pad(db.count.inv++, 6), date: document.getElementById('sDate').value, sku, name: prod.name, qty, total, cost: prod.buy });
+            } else {
+                const old = db.sales[idx]; prod.stock += old.qty;
+                if (prod.stock < qty) { prod.stock -= old.qty; return alert("Low Stock"); }
+                prod.stock -= qty;
+                db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
+            }
+            e.target.reset(); document.getElementById('editSaleIdx').value = "-1"; setDefaultDates(); sync();
+        };
+
+        document.getElementById('invForm').onsubmit = (e) => {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('editInvIdx').value);
+            const data = { name: document.getElementById('iName').value, stock: parseInt(document.getElementById('iStock').value), buy: parseFloat(document.getElementById('iBuy').value), sell: parseFloat(document.getElementById('iSell').value) };
+            if (idx === -1) { data.id = "P" + pad(db.count.sku++, 6); db.inv.push(data); }
+            else { db.inv[idx] = { ...db.inv[idx], ...data }; }
+            e.target.reset(); document.getElementById('editInvIdx').value = "-1"; sync();
+        };
+
+        document.getElementById('expForm').onsubmit = (e) => {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('editExpIdx').value);
+            const data = { date: document.getElementById('eDate').value, desc: document.getElementById('eDesc').value, amt: parseFloat(document.getElementById('eAmt').value) };
+            if (idx === -1) db.exp.push(data);
+            else db.exp[idx] = data;
+            e.target.reset();
+            document.getElementById('editExpIdx').value = "-1";
+            setDefaultDates(); // 👈 ADD THIS
+            save(); sync(); renderExpenses();
+        };
+
+        function deleteExp(i) {
+            db.exp.splice(i, 1);
+            save(); sync(); renderExpenses();
+        }
+        // Universal Archive Function
+        function archive(type, index) {
+            if (!confirm(`Are you sure you want to archive this ${type} record?`)) return;
+
+            let item;
+            if (type === 'sales') item = db.sales.splice(index, 1)[0];
+            if (type === 'inv') item = db.inv.splice(index, 1)[0];
+            if (type === 'exp') item = db.exp.splice(index, 1)[0];
+
+            // Push to archive with metadata
+            db.archive.push({
+                type: type.toUpperCase(),
+                data: item,
+                deletedBy: sessionUser || "Admin",
+                date: new Date().toISOString().split('T')[0]
+            });
+
+            sync();
+        }
+
+        // Restore Function
+        function restore(index) {
+            const archived = db.archive.splice(index, 1)[0];
+            const type = archived.type.toLowerCase();
+
+            if (type === 'sales') db.sales.push(archived.data);
+            if (type === 'inv') db.inv.push(archived.data);
+            if (type === 'exp') db.exp.push(archived.data);
+
+            sync();
+        }
+
+        // Permanent Delete
+        function purge(index) {
+            if (confirm("Permanently delete this record? This cannot be undone.")) {
+                db.archive.splice(index, 1);
+                sync();
+            }
+        }
+        function editSale(i) {
+            const s = db.sales[i];
+            document.getElementById('editSaleIdx').value = i;
+            document.getElementById('sDate').value = s.date;
+            document.getElementById('sID').value = s.sku;
+            document.getElementById('sName').value = s.sku; // Triggers sync
+            document.getElementById('sQty').value = s.qty;
+            document.getElementById('sBtn').innerText = "Update Sale";
+
+            // Switch to Sales section automatically
+            document.querySelector('[data-sec="saleSec"]').click();
+        }
+
+        function editInv(i) {
+            const v = db.inv[i];
+            document.getElementById('editInvIdx').value = i;
+            document.getElementById('iName').value = v.name;
+            document.getElementById('iStock').value = v.stock;
+            document.getElementById('iBuy').value = v.buy;
+            document.getElementById('iSell').value = v.sell;
+            document.getElementById('iBtn').innerText = "Update Product";
+
+            document.querySelector('[data-sec="invSec"]').click();
+        }
+
+        function editExp(i) {
+            const e = db.exp[i];
+            document.getElementById('editExpIdx').value = i;
+            document.getElementById('eDate').value = e.date;
+            document.getElementById('eDesc').value = e.desc;
+            document.getElementById('eAmt').value = e.amt;
+            document.getElementById('eBtn').innerText = "Update Expense";
+
+            document.querySelector('[data-sec="expSec"]').click();
+        }
+
+        // ==========================================
+        // 6. AUTHENTICATION & SECURITY
+        // ==========================================
+        function handleLogin() {
+            const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
+            const user = users.find(x => x.u === u && x.p === p);
+            if (user && user.approved) {
+                sessionUser = user.u;
+                document.getElementById('authWrapper').style.display = 'none';
+                document.getElementById('adminTab').style.display = user.role === 'admin' ? 'flex' : 'none';
+                document.getElementById('setU').value = user.u; sync();
+            } else document.getElementById('authError').style.display = 'block';
+        }
+
+        function handleReg() {
+            users.push({ u: document.getElementById('regUser').value, p: document.getElementById('regPass').value, approved: false, role: 'user' });
+            save(); alert("Request Sent"); toggleAuth(false);
+        }
+
+        function handleLogout() { location.reload(); }
+
+        function toggleAuth(r) {
+            document.getElementById('loginBox').style.display = r ? 'none' : 'block';
+            document.getElementById('regBox').style.display = r ? 'block' : 'none';
+        }
+
+        function togglePasswordVisibility(inputId, iconElement) {
+            const passInput = document.getElementById(inputId);
+            if (passInput.type === 'password') {
+                passInput.type = 'text'; iconElement.textContent = '🌙';
+            } else {
+                passInput.type = 'password'; iconElement.textContent = '☀️';
+            }
+        }
+
+        function handleEnter(event) { if (event.key === "Enter") handleLogin(); }
+        function handleRegEnter(event) { if (event.key === "Enter") handleReg(); }
+
+        // ==========================================
+        // ADMIN USER MANAGEMENT LOGIC
+        // ==========================================
+
+        function approve(username) {
+            const user = users.find(u => u.u === username);
+            if (user) {
+                user.approved = true;
+                save(); // Save to localStorage
+                sync(); // Refresh the admin table
+                alert(`Access granted for ${username}`);
+            }
+        }
+
+        function delUser(index) {
+            const user = users[index];
+
+            // Safety check: Don't let the admin remove themselves
+            if (user.u === sessionUser) {
+                return alert("You cannot remove your own access.");
+            }
+
+            if (confirm(`Are you sure you want to remove access for ${user.u}?`)) {
+                users.splice(index, 1);
+                save();
+                sync();
+            }
+        }
+        /**
+     * Toggles the visibility of the password fields
+     */
+        function togglePassView(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                btn.textContent = "HIDE";
+            } else {
+                input.type = "password";
+                btn.textContent = "SHOW";
+            }
+        }
+
+        /**
+* Logic to update the account credentials
+*/
+        function updateAccount() {
+            const newU = document.getElementById('setU').value.trim();
+            const oldP = document.getElementById('oldP').value;
+            const newP = document.getElementById('setP').value;
+            const msgBox = document.getElementById('settingsMsg');
+
+            // 1. Basic Validation
+            if (!newU || !oldP) {
+                showSettingsMessage("Username and current password are required.", "var(--danger)", "#fff5f5");
+                return;
+            }
+
+            // 2. Find the index of the logged-in user in the global 'users' array
+            const userIdx = users.findIndex(u => u.u === sessionUser);
+
+            if (userIdx === -1) {
+                showSettingsMessage("User session error. Please log in again.", "var(--danger)", "#fff5f5");
+                return;
+            }
+
+            // 3. Verify Current Password
+            if (users[userIdx].p !== oldP) {
+                showSettingsMessage("Incorrect current password.", "var(--danger)", "#fff5f5");
+                return;
+            }
+
+            // 4. Update data
+            users[userIdx].u = newU;
+            sessionUser = newU; // Keep session synced with new username
+
+            if (newP.trim() !== "") {
+                users[userIdx].p = newP;
+                showSettingsMessage("Success! Username and Password updated.", "var(--accent)", "#e6fffa");
+            } else {
+                showSettingsMessage("Success! Username updated.", "var(--accent)", "#e6fffa");
+            }
+
+            // 5. Commit to LocalStorage & Clear Inputs
+            save(); // Uses your existing save() function
+            document.getElementById('oldP').value = "";
+            document.getElementById('setP').value = "";
+
+            // Optional: Refresh any admin tables showing users
+            if (typeof sync === "function") sync();
+        }
+
+        /**
+         * Helper to show the status message
+         */
+        function showSettingsMessage(text, color, bg) {
+            const msgBox = document.getElementById('settingsMsg');
+            msgBox.textContent = text;
+            msgBox.style.display = 'block';
+            msgBox.style.color = color;
+            msgBox.style.background = bg;
+            msgBox.style.border = `1px solid ${color}`;
+        }
+
+        /**
+         * Ensures the toggle button works specifically for these inputs
+         */
+        function togglePassView(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                btn.textContent = "HIDE";
+            } else {
+                input.type = "password";
+                btn.textContent = "SHOW";
+            }
+        }
+
+        // ==========================================
+        // 7. EXPORT ENGINES (CSV & PDF)
+        // ==========================================
+        function getFilteredData() {
+            const startVal = document.getElementById('startDate')?.value;
+            const endVal = document.getElementById('endDate')?.value;
+
+            const startDate = startVal ? new Date(startVal) : null;
+            const endDate = endVal ? new Date(endVal) : null;
+
+            const normalizeDate = (d) => {
+                if (!d) return null;
+                const date = new Date(d);
+                return isNaN(date.getTime()) ? null : date;
+            };
+
+            const filter = (arr) => {
+                if (!startDate || !endDate) return arr || [];
+
+                return (arr || []).filter(item => {
+                    const d = normalizeDate(item.date);
+                    if (!d) return false;
+
+                    return d >= startDate && d <= endDate;
+                });
+            };
+
+            return {
+                startVal,
+                endVal,
+                sales: filter(db.sales),
+                exp: filter(db.exp),
+                inv: db.inv || []
+            };
+        }
+
+        async function exportDashboardPDF() {
+            const { jsPDF } = window.jspdf;
+            const dashboardElement = document.getElementById('dashSec');
+            if (!dashboardElement) return alert("Dashboard not found.");
+            try {
+                const canvas = await html2canvas(dashboardElement, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const imgWidth = pdfWidth - 20;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                pdf.setFontSize(16); pdf.setTextColor(0, 128, 128);
+                pdf.text("POWER UPS BUSINESS SUITE - DASHBOARD", 10, 15);
+                pdf.addImage(imgData, 'PNG', 10, 25, imgWidth, imgHeight);
+                pdf.save("Business_Dashboard_Report.pdf");
+            } catch (e) { console.error(e); }
+        }
+
+        function exportData(type) {
+            const { startVal, endVal, sales, exp, inv } = getFilteredData();
+            const t = (type || "all").toLowerCase();
+
+            let csv = "POWER UPS BUSINESS REPORT\n";
+            csv += `Filtered Range: ${startVal || 'All'} to ${endVal || 'All'}\n\n`;
+
+            // ---------- DASHBOARD SUMMARY ----------
+            if (t === "all") {
+                const revenue = sales.reduce((a, b) => a + Number(b.total || 0), 0);
+                const expenses = exp.reduce((a, b) => a + Number(b.amt || 0), 0);
+                const net = revenue - expenses;
+
+                csv += "DASHBOARD SUMMARY\n";
+                csv += `Revenue,${revenue}\n`;
+                csv += `Expenses,${expenses}\n`;
+                csv += `Net Profit,${net}\n\n`;
+            }
+
+            // ---------- SALES ----------
+            if (t === "all" || t === "sales") {
+                csv += "SALES REPORT\nInv,Date,Item,Qty,Total\n";
+                sales.forEach(s => {
+                    csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`;
+                });
+                csv += "\n";
+            }
+
+            // ---------- EXPENSES ----------
+            if (t === "all" || t === "exp") {
+                csv += "EXPENSES REPORT\nDate,Desc,Amt\n";
+                exp.forEach(e => {
+                    csv += `${e.date},"${e.desc}",${e.amt}\n`;
+                });
+                csv += "\n";
+            }
+
+            // ---------- INVENTORY (FIXED) ----------
+            if (t === "all" || t === "inv") {
+                csv += "INVENTORY REPORT\nSKU,Name,Stock,Buy,Sell\n";
+                inv.forEach(i => {
+                    csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`;
+                });
+                csv += "\n";
+            }
+
+            // ---------- LOW STOCKS (FIXED) ----------
+            if (t === "all" || t === "low") {
+                const lowStocks = db.inv.filter(v => Number(v.stock || 0) < 10);
+
+                csv += "LOW STOCK REPORT\nSKU,Name,Stock,Status\n";
+                lowStocks.forEach(v => {
+                    csv += `${v.id},"${v.name}",${v.stock},REORDER\n`;
+                });
+                csv += "\n";
+            }
+
+            // ---------- DOWNLOAD ----------
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `PowerUps_${type}_Report.csv`;
+            link.click();
+        }
+
+        function exportPDF(type = "all") {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                const { startVal, endVal, sales, exp, inv } = getFilteredData();
+
+                const t = (type || "all").toLowerCase().replace("sec", "");
+
+                // ---------- FORMAT NUMBER ----------
+                const formatNum = (v) => {
+                    return Number(v || 0).toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                };
+
+                let startY = 20;
+
+                // ---------- LOW STOCK DATA ----------
+                const lowStocks = (db.inv || []).filter(v => Number(v.stock || 0) < 10);
+
+                // ---------- HEADER ----------
+                const addHeader = () => {
+                    doc.setFontSize(18);
+                    doc.setTextColor(0, 128, 128);
+                    doc.text("POWER UPS BUSINESS REPORT", 14, startY);
+
+                    startY += 15;
+                };
+
+                // ---------- TABLE RENDER ----------
+                const renderTable = (title, head, body, moneyCols = []) => {
+                    if (!body || body.length === 0) return;
+
+                    doc.setFontSize(13);
+                    doc.setTextColor(0, 128, 128);
+                    doc.text(title, 14, startY);
+
+                    let colStyles = {};
+                    moneyCols.forEach(i => {
+                        colStyles[i] = { halign: 'right' };
+                    });
+
+                    doc.autoTable({
+                        head: [head],
+                        body: body,
+                        startY: startY + 4,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: 9,
+                            cellPadding: 3
+                        },
+                        columnStyles: colStyles,
+                        headStyles: {
+                            fillColor: [0, 128, 128],
+                            textColor: 255,
+                            halign: 'center' // This centers the text horizontally
+                        },
+                        didDrawPage: () => {
+                            const pageHeight = doc.internal.pageSize.height;
+
+                            doc.setFontSize(8);
+                            doc.setTextColor(150);
+                            doc.text("Generated by PowerUps System", 14, pageHeight - 10);
+                        }
+                    });
+
+                    startY = doc.lastAutoTable.finalY + 10;
+                };
+
+                // ---------- START ----------
+                addHeader();
+
+                // ---------- SALES ----------
+                if (t === "all" || t === "sales") {
+                    const body = (sales || []).map(s => [
+                        s.invNo || "-",
+                        fDate(s.date), // <--- Use fDate here to convert YYYY-MM-DD to MM/DD/YYYY
+                        s.name || "-",
+                        s.qty || 0,
+                        formatNum(s.total)
+                    ]);
+
+                    const total = (sales || []).reduce((sum, s) => sum + Number(s.total || 0), 0);
+
+                    if (body.length) {
+                        body.push(["", "", "", "TOTAL", formatNum(total)]);
+                    } else {
+                        body.push(["No sales data", "", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "SALES REPORT",
+                        ["Invoice", "Date", "Item", "Qty", "Total"],
+                        body,
+                        [4]
+                    );
+                }
+
+                // ---------- EXPENSES ----------
+                if (t === "all" || t === "exp") {
+                    const body = (exp || []).map(e => [
+                        fDate(e.date), // <--- Use fDate here
+                        e.desc || "-",
+                        formatNum(e.amt)
+                    ]);
+
+                    const total = (exp || []).reduce((sum, e) => sum + Number(e.amt || 0), 0);
+
+                    if (body.length) {
+                        body.push(["", "TOTAL", formatNum(total)]);
+                    } else {
+                        body.push(["No expenses found", "", ""]);
+                    }
+
+                    renderTable(
+                        "EXPENSES REPORT",
+                        ["Date", "Description", "Amount"],
+                        body,
+                        [2]
+                    );
+                }
+
+                // ---------- INVENTORY ----------
+                if (t === "all" || t === "inv") {
+                    const body = (inv || []).map(i => [
+                        i.id || "-",
+                        i.name || "-",
+                        i.stock || 0,
+                        formatNum(i.buy),
+                        formatNum(i.sell)
+                    ]);
+
+                    if (!body.length) {
+                        body.push(["No inventory data", "", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "INVENTORY LIST",
+                        ["SKU", "Name", "Stock", "Cost", "Price"],
+                        body,
+                        [3, 4]
+                    );
+                }
+
+                // ---------- LOW STOCKS ----------
+                if (t === "all" || t === "low") {
+                    const body = lowStocks.map(v => [
+                        v.id || "-",
+                        v.name || "-",
+                        v.stock || 0,
+                        v.stock < 10 ? "REORDER" : ""
+                    ]);
+
+                    if (!body.length) {
+                        body.push(["No low stock items", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "LOW STOCK ALERT",
+                        ["SKU", "Product", "Stock", "Status"],
+                        body,
+                        [2]
+                    );
+                }
+
+                // ---------- SAVE ----------
+                doc.save(`PowerUps_${t}_Report.pdf`);
+
+            } catch (err) {
+                console.error("PDF ERROR:", err);
+                alert("Failed to export PDF.");
+            }
+        }
+        const { startVal, endVal, sales, exp, inv } = getFilteredData();
+
+        console.log("FILTER DEBUG:");
+        console.log("startVal:", startVal, "endVal:", endVal);
+        console.log("RAW db.exp:", db.exp);
+        console.log("FILTERED exp:", exp);
+
+        // ==========================================
+        // 8. NAVIGATION & DOM EVENTS
+        // ==========================================
+        document.querySelectorAll('.nav-item').forEach(n => n.onclick = () => {
+            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+            n.classList.add('active');
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+            document.getElementById(n.dataset.sec).classList.add('active');
+            document.getElementById('globalFilter').style.display = n.dataset.sec === 'dashSec' ? 'flex' : 'none';
+        });
+
+        document.getElementById('sID').onchange = (e) => document.getElementById('sName').value = e.target.value;
+        document.getElementById('sName').onchange = (e) => document.getElementById('sID').value = e.target.value;
+
+        init();
+    </script>
+</body>
+</html>
