@@ -746,9 +746,28 @@
         };
 
         function init() {
-            const sd = localStorage.getItem('Powerups21_db'), su = localStorage.getItem('Powerups21_users');
+    rtdb.ref('businessData').once('value', (snapshot) => {
+        const cloudData = snapshot.val();
+        
+        if (cloudData && cloudData.db) {
+            // Only use cloud data if it actually exists
+            db = cloudData.db;
+            users = cloudData.users || users;
+            console.log("Loaded from Cloud");
+        } else {
+            // If cloud is null, try to load from your laptop's local storage
+            const sd = localStorage.getItem('Powerups21_db');
+            const su = localStorage.getItem('Powerups21_users');
             if (sd) db = JSON.parse(sd);
             if (su) users = JSON.parse(su);
+            console.log("Cloud is empty, loaded from LocalStorage");
+            
+            // IMMEDIATELY push local data to cloud so it's no longer null
+            save(); 
+        }
+        sync(); // Refresh your UI
+    });
+}
 
             migrateData();
             renderExpenses();
