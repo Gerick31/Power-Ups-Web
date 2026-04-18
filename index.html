@@ -882,6 +882,10 @@ function migrateData() {
             document.getElementById('headTotalInvDash').innerText = fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
 
             renderChart(fs, fe);
+            const chartEl = document.getElementById('mainChart');
+    if (chartEl) {
+        renderChart(fs, fe);
+    }
         }
 
         function renderChart(filteredSales, filteredExpenses) {
@@ -982,13 +986,14 @@ function migrateData() {
         }
 
         function setDefaultDates() {
-            const now = new Date().toISOString().split('T')[0];
-            ['sDate', 'eDate'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = now;
-            });
-        }
-
+    const now = new Date().toISOString().split('T')[0];
+    // This targets the IDs used in your Sale and Expense forms
+    const dateInputs = ['sDate', 'eDate']; 
+    dateInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = now;
+    });
+}
         function updateDropdowns() {
             const h = (id, list) => {
                 const el = document.getElementById(id);
@@ -1005,26 +1010,39 @@ function migrateData() {
         // 5. TRANSACTION HANDLERS (FORMS)
         // ==========================================
         document.getElementById('saleForm').onsubmit = (e) => {
-            e.preventDefault();
-            const idx = parseInt(document.getElementById('editSaleIdx').value);
-            const sku = document.getElementById('sID').value;
-            const qty = parseInt(document.getElementById('sQty').value);
-            const prod = db.inv.find(i => i.id === sku);
-            const disc = parseFloat(document.getElementById('sDisc').value || 0);
-            const total = (qty * prod.sell) * (1 - (disc / 100));
+    e.preventDefault();
+    const idx = parseInt(document.getElementById('editSaleIdx').value);
+    const sku = document.getElementById('sID').value;
+    const qty = parseInt(document.getElementById('sQty').value);
+    const prod = db.inv.find(i => i.id === sku);
+    
+    if (!prod) return alert("Select a product");
 
-            if (idx === -1) {
-                if (prod.stock < qty) return alert("Low Stock");
-                prod.stock -= qty;
-                db.sales.push({ invNo: "INV-" + pad(db.count.inv++, 6), date: document.getElementById('sDate').value, sku, name: prod.name, qty, total, cost: prod.buy });
-            } else {
-                const old = db.sales[idx]; prod.stock += old.qty;
-                if (prod.stock < qty) { prod.stock -= old.qty; return alert("Low Stock"); }
-                prod.stock -= qty;
-                db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
-            }
-            e.target.reset(); document.getElementById('editSaleIdx').value = "-1"; setDefaultDates(); sync();
-        };
+    if (idx === -1) { // NEW SALE
+        if (prod.stock < qty) return alert("Insufficient Stock!");
+        prod.stock -= qty;
+        db.sales.push({ 
+            invNo: "INV-" + pad(db.count.inv++, 6), 
+            date: document.getElementById('sDate').value, 
+            sku, name: prod.name, qty, 
+            total: (qty * prod.sell), 
+            cost: prod.buy 
+        });
+    } else { // EDIT SALE
+        const old = db.sales[idx];
+        prod.stock += old.qty; // Reverse old stock
+        if (prod.stock < qty) { prod.stock -= old.qty; return alert("Insufficient Stock!"); }
+        prod.stock -= qty;
+        db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total: (qty * prod.sell) };
+    }
+    
+    e.target.reset();
+    document.getElementById('editSaleIdx').value = "-1";
+    document.getElementById('sBtn').innerText = "Record Sale"; // Reset button text
+    save(); // Sync to Firebase
+    sync(); // Update UI
+    setDefaultDates();
+};
 
         document.getElementById('invForm').onsubmit = (e) => {
             e.preventDefault();
@@ -1140,30 +1158,60 @@ function migrateData() {
             } else document.getElementById('authError').style.display = 'block';
         }
 
-        function handleReg() {
-            users.push({ u: document.getElementById('regUser').value, p: document.getElementById('regPass').value, approved: false, role: 'user' });
-            save(); alert("Request Sent"); toggleAuth(false);
-        }
+        // 1. Fixed Registration
+function handleReg() {
+    const u = document.getElementById('regUser').value.trim();
+    const p = document.getElementById('regPass').value.trim();
+    
+    if(!u || !p) return alert("Please fill in both fields");
+    
+    users.push({ u: u, p: p, approved: false, role: 'user' });
+    save(); 
+    alert("Request Sent! Please wait for Admin approval.");
+    toggleAuth(false); // Switch back to login box
+}
 
+// 2. Password Toggle for Request Access
+// Use this in your HTML: <span onclick="togglePassView('regPass', this)">SHOW</span>
+function togglePassView(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "HIDE";
+    } else {
+        input.type = "password";
+        btn.textContent = "SHOW";
+    }
+}
         function handleLogout() { location.reload(); }
 
-        function toggleAuth(r) {
-            document.getElementById('loginBox').style.display = r ? 'none' : 'block';
-            document.getElementById('regBox').style.display = r ? 'block' : 'none';
-        }
+        // This handles switching between Login and Request Access boxes
+function toggleAuth(isRegistering) {
+    const loginBox = document.getElementById('loginBox');
+    const regBox = document.getElementById('regBox');
+    
+    if (isRegistering) {
+        loginBox.style.display = 'none';
+        regBox.style.display = 'block';
+    } else {
+        loginBox.style.display = 'block';
+        regBox.style.display = 'none';
+    }
+}
 
-        function togglePasswordVisibility(inputId, iconElement) {
-            const passInput = document.getElementById(inputId);
-            if (passInput.type === 'password') {
-                passInput.type = 'text'; iconElement.textContent = '🌙';
-            } else {
-                passInput.type = 'password'; iconElement.textContent = '☀️';
-            }
-        }
-
-        function handleEnter(event) { if (event.key === "Enter") handleLogin(); }
-        function handleRegEnter(event) { if (event.key === "Enter") handleReg(); }
-
+// Specifically for the eye icon in the Request Access box
+function togglePassView(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "HIDE"; // Or your '🌙' icon
+    } else {
+        input.type = "password";
+        btn.textContent = "SHOW"; // Or your '☀️' icon
+    }
+}
         // ==========================================
         // ADMIN USER MANAGEMENT LOGIC
         // ==========================================
@@ -1382,16 +1430,17 @@ function migrateData() {
             }
 
             // ---------- LOW STOCKS (FIXED) ----------
-            if (t === "all" || t === "low") {
-                const lowStocks = db.inv.filter(v => Number(v.stock || 0) < 10);
+            // Inside exportData(type)...
+if (t === "all" || t === "low") {
+    // We filter items where stock is less than 10
+    const lowStocks = db.inv.filter(v => Number(v.stock || 0) < 10);
 
-                csv += "LOW STOCK REPORT\nSKU,Name,Stock,Status\n";
-                lowStocks.forEach(v => {
-                    csv += `${v.id},"${v.name}",${v.stock},REORDER\n`;
-                });
-                csv += "\n";
-            }
-
+    csv += "LOW STOCK REPORT\nSKU,Name,Stock,Status\n";
+    lowStocks.forEach(v => {
+        csv += `${v.id},"${v.name}",${v.stock},REORDER\n`;
+    });
+    csv += "\n";
+}
             // ---------- DOWNLOAD ----------
             const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
