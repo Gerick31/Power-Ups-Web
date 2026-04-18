@@ -7,9 +7,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <script>
+        // Your config goes here...
+        const firebaseConfig = { ... };
+        firebase.initializeApp(firebaseConfig);
+        const rtdb = firebase.database();
+    </script>
+
     <style>
         :root {
             --primary: #008080;
@@ -725,20 +732,38 @@
 
         // Fixed Init: Loads from Cloud first, then falls back to local
         function init() {
+            console.log("Initializing system...");
+
             if (typeof rtdb !== 'undefined') {
                 rtdb.ref('businessData').once('value', (snap) => {
                     const val = snap.val();
-                    if (val) {
-                        db = val.db || db;
+
+                    // Check Local Storage first as a backup
+                    const sd = localStorage.getItem('Powerups21_db');
+                    const su = localStorage.getItem('Powerups21_users');
+
+                    if (val && val.db) {
+                        // Cloud has data! Use it.
+                        db = val.db;
                         users = val.users || users;
-                    } else {
-                        const sd = localStorage.getItem('Powerups21_db'), su = localStorage.getItem('Powerups21_users');
-                        if (sd) db = JSON.parse(sd);
+                        console.log("✅ Data synced from Singapore Cloud");
+                    } else if (sd) {
+                        // Cloud is empty, but Local has data! Use Local and then Push to Cloud.
+                        db = JSON.parse(sd);
                         if (su) users = JSON.parse(su);
+                        console.log("🏠 Cloud empty. Using Local Data and uploading...");
+                        save(); // This pushes your local data to the empty cloud
+                    } else {
+                        console.log("🆕 New system: No data found anywhere.");
                     }
+
                     startApp();
+                }, (error) => {
+                    console.error("❌ Firebase Read Error:", error);
+                    startApp(); // Still start the app even if cloud fails
                 });
             } else {
+                console.error("⚠️ rtdb is not defined. Check Firebase script tags.");
                 startApp();
             }
         }
