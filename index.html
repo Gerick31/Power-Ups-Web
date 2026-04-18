@@ -765,24 +765,25 @@
             // IMMEDIATELY push local data to cloud so it's no longer null
             save(); 
         }
+
+        // --- Run setup logic AFTER data is loaded ---
+        migrateData();
+        renderExpenses();
+        setDefaultDates();
+
+        if (document.getElementById('fYear')) {
+            handleMonthYearChange();
+        }
+        
         sync(); // Refresh your UI
     });
+} // <--- This bracket was missing or misplaced
+
+function migrateData() {
+    db.inv.forEach(i => { if (!i.id) i.id = "P" + pad(db.count.sku++, 6); });
+    db.sales.forEach(s => { if (!s.invNo) s.invNo = "INV-" + pad(db.count.inv++, 6); });
+    save();
 }
-
-            migrateData();
-            renderExpenses();
-            setDefaultDates();
-
-            if (document.getElementById('fYear')) {
-                handleMonthYearChange();
-            }
-        }
-
-        function migrateData() {
-            db.inv.forEach(i => { if (!i.id) i.id = "P" + pad(db.count.sku++, 6); });
-            db.sales.forEach(s => { if (!s.invNo) s.invNo = "INV-" + pad(db.count.inv++, 6); });
-            save();
-        }
 
         // ==========================================
         // 3. DASHBOARD & ANALYTICS
