@@ -724,9 +724,21 @@
         const pad = (n, s) => n.toString().padStart(s, '0');
 
         const save = () => {
-            localStorage.setItem('Powerups21_db', JSON.stringify(db));
-            localStorage.setItem('Powerups21_users', JSON.stringify(users));
-        };
+    // 1. This saves it to the laptop browser (local)
+    localStorage.setItem('Powerups21_db', JSON.stringify(db));
+    localStorage.setItem('Powerups21_users', JSON.stringify(users));
+
+    // 2. This pushes it to the Singapore Cloud (Firebase)
+    // IMPORTANT: Make sure this says 'businessData'
+    rtdb.ref('businessData').set({
+        db: db,
+        users: users
+    }).then(() => {
+        console.log("Cloud Sync Successful!");
+    }).catch((error) => {
+        console.error("Cloud Sync Failed: ", error);
+    });
+};
         const fDate = (d) => {
             if (!d) return "-";
             const [y, m, dDay] = d.split('-');
