@@ -712,6 +712,15 @@
 
     <script>
         // ==========================================
+        // 0. CLOUD CONNECTION (SAFE INIT)
+        // ==========================================
+        const firebaseConfig = {
+            databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const rtdb = firebase.database();
+
+        // ==========================================
         // 1. GLOBAL STATE & CONFIG
         // ==========================================
         let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
@@ -795,8 +804,6 @@
             db.sales.forEach(s => { if (!s.invNo) { s.invNo = "INV-" + pad(db.count.inv++, 6); changed = true; } });
             if (changed) save();
         }
-
-
         // ==========================================
         // 3. DASHBOARD & ANALYTICS
         // ==========================================
