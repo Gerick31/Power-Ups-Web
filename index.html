@@ -1349,28 +1349,28 @@ const rtdb = firebase.database();
 
                 // SALES SECTION
                 if (t === "all" || t === "sales") {
-                    csv += "--- SALES REPORT ---\nInvoice,Date,Item,Qty,Total\n";
+                    csv += "SALES REPORT\nInvoice,Date,Item,Qty,Total\n";
                     sales.forEach(s => csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`);
                     csv += "\n";
                 }
 
                 // EXPENSES SECTION
                 if (t === "all" || t === "exp") {
-                    csv += "--- EXPENSES REPORT ---\nDate,Description,Amount\n";
+                    csv += "EXPENSES REPORT\nDate,Description,Amount\n";
                     exp.forEach(e => csv += `${e.date},"${e.desc}",${e.amt}\n`);
                     csv += "\n";
                 }
 
                 // INVENTORY SECTION
                 if (t === "all" || t === "inv") {
-                    csv += "--- FULL INVENTORY ---\nSKU,Name,Stock,Cost,Price\n";
+                    csv += "FULL INVENTORY\nSKU,Name,Stock,Cost,Price\n";
                     inv.forEach(i => csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`);
                     csv += "\n";
                 }
 
                 // LOW STOCKS SECTION (Fixed: Now exports correctly)
                 if (t === "all" || t === "low") {
-                    csv += "--- LOW STOCK ALERT (Under 10 units) ---\nSKU,Product,Current Stock,Status\n";
+                    csv += "LOW STOCK ALERT\nSKU,Product,Current Stock,Status\n";
                     if (low.length > 0) {
                         low.forEach(item => csv += `${item.id},"${item.name}",${item.stock},REORDER NOW\n`);
                     } else {
