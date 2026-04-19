@@ -1193,27 +1193,13 @@ const rtdb = firebase.database();
         // ADMIN USER MANAGEMENT LOGIC
         // ==========================================
 
-       function approveUser(username) {
-    // 1. Show the confirmation message
-    const proceed = confirm(`Do you want to grant access to "${username}"?`);
-
-    if (proceed) {
-        // 2. Find the user in your 'users' array
-        const user = users.find(u => u.u === username);
-        
-        if (user) {
-            user.approved = true;
-            
-            // 3. Save to LocalStorage and Singapore Cloud
-            save(); 
-            
-            // 4. Refresh the UI (assuming you have a function to show the list)
-            if (typeof renderUserList === 'function') renderUserList();
-            
-            alert(`${username} has been granted access!`);
-        }
-    } else {
-        console.log("Approval cancelled by admin.");
+       function approve(username) {
+    const user = users.find(u => u.u === username);
+    if (user) {
+        user.approved = true;
+        save(); // Save to localStorage
+        sync(); // Refresh the admin table
+        alert(`Access granted for ${username}`);
     }
 }
         function delUser(index) {
