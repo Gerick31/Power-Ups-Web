@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Power Ups Business Suite | Full System</title>
@@ -9,13 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-    <script>
-        // Your config goes here...
-        const firebaseConfig = { ... };
-        firebase.initializeApp(firebaseConfig);
-        const rtdb = firebase.database();
-    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         :root {
@@ -451,20 +447,36 @@
         <div class="auth-box" id="loginBox">
             <h2>Power Ups Login</h2>
             <input type="text" id="userIn" placeholder="Username" onkeypress="handleEnter(event)">
+
             <div class="password-wrapper">
                 <input type="password" id="passIn" placeholder="Password" onkeypress="handleEnter(event)">
                 <span onclick="togglePasswordVisibility('passIn', this)">☀️</span>
             </div>
+
             <button class="primary-btn" style="width:100%" onclick="handleLogin()">Login</button>
-            <p id="authError" style="color:var(--danger); display:none; font-size:12px; margin-top:10px;">Invalid or Unapproved Account</p>
-            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(true)">Don't have an account? Register</p>
+
+            <p id="authError" style="color:var(--danger); display:none; font-size:12px; margin-top:10px;">
+                Invalid or Unapproved Account
+            </p>
+            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(true)">
+                Don't have an account? Register
+            </p>
         </div>
+
         <div class="auth-box" id="regBox" style="display:none;">
             <h2>Register Account</h2>
             <input type="text" id="regUser" placeholder="Desired Username" onkeypress="handleRegEnter(event)">
-            <input type="password" id="regPass" placeholder="Password" onkeypress="handleRegEnter(event)">
+
+            <div class="password-wrapper">
+                <input type="password" id="regPass" placeholder="Password" onkeypress="handleRegEnter(event)">
+                <span onclick="togglePasswordVisibility('regPass', this)">☀️</span>
+            </div>
+
             <button class="primary-btn" style="width:100%" onclick="handleReg()">Submit Request</button>
-            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(false)">Back to Login</p>
+
+            <p style="font-size:12px; cursor:pointer; margin-top:15px;" onclick="toggleAuth(false)">
+                Back to Login
+            </p>
         </div>
     </div>
 
@@ -784,14 +796,15 @@
             if (changed) save();
         }
 
+
         // ==========================================
         // 3. DASHBOARD & ANALYTICS
         // ==========================================
         function updateDash() {
-            const sEl = document.getElementById('startDate'), eEl = document.getElementById('endDate');
-            const startVal = sEl ? sEl.value : "";
-            const endVal = eEl ? eEl.value : "";
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
 
+            // Unified Filter Logic: Shows "All-Time" if inputs are blank
             const filter = (arr) => arr.filter(x => {
                 if (!startVal || !endVal) return true;
                 return x.date >= startVal && x.date <= endVal;
@@ -803,33 +816,82 @@
             const op = fe.reduce((a, b) => a + b.amt, 0);
             const netProfit = rev - cogs - op;
 
-            const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
-
-            // Stats Calculation
+            // Smart Date Range Engine
             let days = 1;
             if (startVal && endVal) {
-                days = Math.ceil(Math.abs(new Date(endVal) - new Date(startVal)) / 86400000) + 1;
+                const start = new Date(startVal);
+                const end = new Date(endVal);
+                days = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+            } else if (db.sales.length > 0) {
+                const allDates = db.sales.map(s => new Date(s.date));
+                const firstSale = new Date(Math.min(...allDates));
+                days = Math.ceil(Math.abs(new Date() - firstSale) / (1000 * 60 * 60 * 24)) + 1;
             }
 
-            setT('dAvg', fCurrency(rev / days));
-            setT('dCount', fs.length);
-            setT('dRev', fCurrency(rev));
-            setT('dExp', fCurrency(op));
+            // Metrics
+            document.getElementById('dAvg').innerText = fCurrency(rev / days);
+            document.getElementById('dCount').innerText = fs.length;
 
-            const netEl = document.getElementById('dNet');
-            if (netEl) {
-                netEl.innerText = fCurrency(netProfit);
-                netEl.style.color = netProfit > 0 ? "#008080" : "#e74c3c";
+            // Profitability
+            const marginEl = document.getElementById('dMargin');
+            const mPct = rev > 0 ? ((netProfit / rev) * 100) : 0;
+            marginEl.innerText = mPct.toFixed(2) + "%";
+            marginEl.style.color = mPct > 0 ? "#27ae60" : (mPct < 0 ? "#e74c3c" : "black");
+
+            const totalCosts = cogs + op;
+            const goalEl = document.getElementById('dGoal');
+            if (rev >= totalCosts && totalCosts > 0) {
+                goalEl.innerText = "Profitable!";
+                goalEl.style.color = "#27ae60";
+            } else {
+                const remaining = totalCosts - rev;
+                goalEl.innerText = totalCosts === 0 ? "No Expenses" : `₱${remaining.toLocaleString()} more`;
+                goalEl.style.color = "#e67e22";
             }
 
-            // Peak & Inventory Analysis
+            // Peak Analysis
+            let dailyTotals = {};
             let itemMap = {};
-            fs.forEach(s => { itemMap[s.name] = (itemMap[s.name] || 0) + s.qty; });
-            let bestItem = Object.keys(itemMap).reduce((a, b) => itemMap[a] > itemMap[b] ? a : b, "None");
-            setT('dBest', bestItem === "None" ? "None" : `${bestItem} (${itemMap[bestItem]})`);
+            fs.forEach(s => {
+                dailyTotals[s.date] = (dailyTotals[s.date] || 0) + s.total;
+                itemMap[s.name] = (itemMap[s.name] || 0) + s.qty;
+            });
 
-            setT('projIncome', fCurrency(db.inv.reduce((a, b) => a + (b.stock * (b.sell - b.buy)), 0)));
-            setT('headTotalInvDash', fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0)));
+            let peakDate = "None", peakAmt = 0;
+            for (const d in dailyTotals) { if (dailyTotals[d] > peakAmt) { peakAmt = dailyTotals[d]; peakDate = d; } }
+            document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
+
+            let bestItem = "None", maxQty = 0;
+            for (const item in itemMap) { if (itemMap[item] > maxQty) { maxQty = itemMap[item]; bestItem = item; } }
+            document.getElementById('dBest').innerText = bestItem !== "None" ? `${bestItem} (${maxQty})` : "None";
+
+            // Forecast & Financials
+            let criticalItem = "None";
+            let shortestRunway = Infinity;
+            db.inv.forEach(item => {
+                const soldInRange = fs.filter(s => s.name === item.name).reduce((a, b) => a + b.qty, 0);
+                const velocity = soldInRange / days;
+                if (velocity > 0) {
+                    const runway = item.stock / velocity;
+                    if (runway < shortestRunway) {
+                        shortestRunway = runway;
+                        criticalItem = `${item.name} (~${Math.floor(runway)} days)`;
+                    }
+                }
+            });
+            document.getElementById('dTimer').innerText = criticalItem;
+
+            document.getElementById('dRev').innerText = fCurrency(rev);
+            const netEl = document.getElementById('dNet');
+            netEl.innerText = fCurrency(netProfit);
+            netEl.style.color = netProfit > 0 ? "#27ae60" : (netProfit < 0 ? "#e74c3c" : "black");
+
+            const expEl = document.getElementById('dExp');
+            expEl.innerText = fCurrency(op);
+            expEl.style.color = "#e74c3c";
+
+            document.getElementById('projIncome').innerText = fCurrency(db.inv.reduce((a, b) => a + (b.stock * (b.sell - b.buy)), 0));
+            document.getElementById('headTotalInvDash').innerText = fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
 
             renderChart(fs, fe);
         }
@@ -840,13 +902,13 @@
             const ctx = chartEl.getContext('2d');
 
             let dailyData = {};
-            filteredSales.forEach(s => {
-                if (!dailyData[s.date]) dailyData[s.date] = { r: 0, e: 0 };
-                dailyData[s.date].r += s.total;
+            (filteredSales || []).forEach(s => {
+                if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
+                dailyData[s.date].rev += s.total;
             });
-            filteredExpenses.forEach(e => {
-                if (!dailyData[e.date]) dailyData[e.date] = { r: 0, e: 0 };
-                dailyData[e.date].e += e.amt;
+            (filteredExpenses || []).forEach(e => {
+                if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
+                dailyData[e.date].exp += e.amt;
             });
 
             const lbls = Object.keys(dailyData).sort();
@@ -855,15 +917,37 @@
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: lbls.map(l => fDate(l)),
+                    labels: lbls,
                     datasets: [
-                        { label: 'Revenue', data: lbls.map(l => dailyData[l].r), borderColor: '#008080', tension: 0.3, fill: false },
-                        { label: 'Expenses', data: lbls.map(l => dailyData[l].e), borderColor: '#e74c3c', tension: 0.3, fill: false }
+                        {
+                            label: 'Revenue',
+                            data: lbls.map(l => dailyData[l].rev),
+                            borderColor: '#008080',
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Expenses',
+                            data: lbls.map(l => dailyData[l].exp),
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            tension: 0.3,
+                            borderWidth: 3,
+                            fill: true
+                        }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: (v) => '₱' + v.toLocaleString() } }
+                    }
+                }
             });
         }
+
         // ==========================================
         // 4. UI RENDERING & SYNC
         // ==========================================
@@ -871,54 +955,66 @@
             save();
             updateDash();
             updateDropdowns();
-
             const r = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-            const setT = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
 
-            // Tables
             r('saleTableBody', db.sales.map((s, i) => `<tr><td>${s.invNo}</td><td>${fDate(s.date)}</td><td>${s.name}</td><td>${s.qty}</td><td>${fCurrency(s.total)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editSale(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('sales',${i})">Del</button></td></tr>`).join(''));
             r('invTableBody', db.inv.map((v, i) => `<tr><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>${fCurrency(v.buy)}</td><td>${fCurrency(v.sell)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editInv(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('inv',${i})">Del</button></td></tr>`).join(''));
             renderExpenses();
             r('delTableBody', db.archive.map((a, i) => `<tr><td>${a.type}</td><td>${a.data.id || a.data.invNo}</td><td>${a.data.name || a.data.desc}</td><td>${a.deletedBy}</td><td><button class="btn-sm" style="background:var(--accent)" onclick="restore(${i})">Restore</button><button class="btn-sm" style="background:var(--danger)" onclick="purge(${i})">Purge</button></td></tr>`).join(''));
             r('adminTableBody', users.map((u, i) => `<tr><td>${u.u}</td><td>${u.approved ? 'Active' : 'Pending'}</td><td>${!u.approved ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>` : ''} ${u.role !== 'admin' ? `<button class="btn-sm" style="background:var(--danger)" onclick="delUser(${i})">Remove Access</button>` : ''}</td></tr>`).join(''));
 
-            r('lowTableBody', db.inv.filter(v => v.stock < 10).map(v => `<tr style="color:black;"><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>REORDER</td></tr>`).join(''));
+            r('lowTableBody', db.inv.filter(v => v.stock < 10).map(v => `
+                        <tr style="color:black;">
+                            <td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>Reorder</td>
+                        </tr>`).join(''));
 
-            // Header Summaries
-            setT('headTotalSales', "Total Sales: " + fCurrency(db.sales.reduce((a, b) => a + b.total, 0)));
-            setT('headTotalInv', "Asset Value: " + fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0)));
-            setT('headTotalExp', "Total Expense: " + fCurrency(db.exp.reduce((a, b) => a + b.amt, 0)));
-            setT('headTotalLow', "Low Stock Items: " + db.inv.filter(v => v.stock < 10).length);
+            document.getElementById('headTotalSales').innerText = "Total Sales: " + fCurrency(db.sales.reduce((a, b) => a + b.total, 0));
+            document.getElementById('headTotalInv').innerText = "Asset Value: " + fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
+            document.getElementById('headTotalExp').innerText = "Total Expense: " + fCurrency(db.exp.reduce((a, b) => a + b.amt, 0));
+            document.getElementById('headTotalLow').innerText = "Low Stock Items: " + db.inv.filter(v => v.stock < 10).length;
         }
 
         function renderExpenses() {
             const tbody = document.getElementById("expTableBody");
             if (!tbody) return;
+            tbody.innerHTML = "";
             if (!db.exp || db.exp.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4">No expenses found</td></tr>`;
                 return;
             }
-            tbody.innerHTML = db.exp.map((e, i) => `<tr><td>${fDate(e.date)}</td><td>${e.desc}</td><td>${fCurrency(e.amt)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editExp(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('exp', ${i})">Del</button></td></tr>`).join('');
+            db.exp.forEach((e, i) => {
+                tbody.innerHTML += `<tr>
+                            <td>${fDate(e.date)}</td><td>${e.desc}</td><td>${fCurrency(e.amt)}</td>
+                            <td>
+                                <button class="btn-sm" style="background:var(--warning)" onclick="editExp(${i})">Edit</button>
+                                <button class="btn-sm" style="background:var(--danger)" onclick="archive('exp', ${i})">Del</button>
+                            </td>
+                        </tr>`;
+            });
         }
 
         function setDefaultDates() {
             const now = new Date().toISOString().split('T')[0];
-            ['sDate', 'eDate', 'startDate', 'endDate'].forEach(id => {
+            ['sDate', 'eDate'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = now;
             });
         }
 
         function updateDropdowns() {
-            const fill = (id, list, isID) => {
+            const h = (id, list) => {
                 const el = document.getElementById(id);
-                if (el) el.innerHTML = '<option value="">Select</option>' + list.map(i => `<option value="${i.id}">${isID ? i.id : i.name}</option>`).join('');
+                if (el) el.innerHTML = '<option value="">Select</option>' + list.map(i => `<option value="${i.id}">${id === 'sID' ? i.id : i.name}</option>`).join('');
             };
-            fill('sID', db.inv, true); fill('sName', db.inv, false);
+            h('sID', db.inv); h('sName', db.inv);
+        }
+
+        function filterTable(tbody, q) {
+            document.querySelectorAll(`#${tbody} tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
         }
 
         // ==========================================
-        // 5. TRANSACTION HANDLERS
+        // 5. TRANSACTION HANDLERS (FORMS)
         // ==========================================
         document.getElementById('saleForm').onsubmit = (e) => {
             e.preventDefault();
@@ -926,96 +1022,96 @@
             const sku = document.getElementById('sID').value;
             const qty = parseInt(document.getElementById('sQty').value);
             const prod = db.inv.find(i => i.id === sku);
-            if (!prod) return alert("Select a product");
-
             const disc = parseFloat(document.getElementById('sDisc').value || 0);
             const total = (qty * prod.sell) * (1 - (disc / 100));
 
             if (idx === -1) {
-                if (prod.stock < qty) return alert("Low Stock!");
+                if (prod.stock < qty) return alert("Low Stock");
                 prod.stock -= qty;
                 db.sales.push({ invNo: "INV-" + pad(db.count.inv++, 6), date: document.getElementById('sDate').value, sku, name: prod.name, qty, total, cost: prod.buy });
             } else {
-                const old = db.sales[idx];
-                prod.stock += old.qty; // Reverse old stock
-                if (prod.stock < qty) { prod.stock -= old.qty; return alert("Low Stock!"); }
+                const old = db.sales[idx]; prod.stock += old.qty;
+                if (prod.stock < qty) { prod.stock -= old.qty; return alert("Low Stock"); }
                 prod.stock -= qty;
                 db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
             }
-
-            e.target.reset();
-            document.getElementById('editSaleIdx').value = "-1";
-            document.getElementById('sBtn').innerText = "Record Sale"; // Reset Button
-            setDefaultDates();
-            sync();
+            e.target.reset(); document.getElementById('editSaleIdx').value = "-1"; setDefaultDates(); sync();
         };
 
         document.getElementById('invForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editInvIdx').value);
-            const data = {
-                name: document.getElementById('iName').value,
-                stock: parseInt(document.getElementById('iStock').value),
-                buy: parseFloat(document.getElementById('iBuy').value),
-                sell: parseFloat(document.getElementById('iSell').value)
-            };
-            if (idx === -1) {
-                data.id = "P" + pad(db.count.sku++, 6);
-                db.inv.push(data);
-            } else {
-                db.inv[idx] = { ...db.inv[idx], ...data };
-            }
-            e.target.reset();
-            document.getElementById('editInvIdx').value = "-1";
-            document.getElementById('iBtn').innerText = "Add Product"; // Reset Button
-            sync();
+            const data = { name: document.getElementById('iName').value, stock: parseInt(document.getElementById('iStock').value), buy: parseFloat(document.getElementById('iBuy').value), sell: parseFloat(document.getElementById('iSell').value) };
+            if (idx === -1) { data.id = "P" + pad(db.count.sku++, 6); db.inv.push(data); }
+            else { db.inv[idx] = { ...db.inv[idx], ...data }; }
+            e.target.reset(); document.getElementById('editInvIdx').value = "-1"; sync();
         };
 
         document.getElementById('expForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editExpIdx').value);
-            const data = {
-                date: document.getElementById('eDate').value,
-                desc: document.getElementById('eDesc').value,
-                amt: parseFloat(document.getElementById('eAmt').value)
-            };
+            const data = { date: document.getElementById('eDate').value, desc: document.getElementById('eDesc').value, amt: parseFloat(document.getElementById('eAmt').value) };
             if (idx === -1) db.exp.push(data);
             else db.exp[idx] = data;
-
             e.target.reset();
             document.getElementById('editExpIdx').value = "-1";
-            document.getElementById('eBtn').innerText = "Record Expense"; // Reset Button
-            setDefaultDates();
-            sync();
+            setDefaultDates(); // 👈 ADD THIS
+            save(); sync(); renderExpenses();
         };
 
-        // --- ARCHIVE & EDIT HELPERS ---
+        function deleteExp(i) {
+            db.exp.splice(i, 1);
+            save(); sync(); renderExpenses();
+        }
+        // Universal Archive Function
         function archive(type, index) {
-            if (!confirm(`Archive this ${type}?`)) return;
-            const item = db[type].splice(index, 1)[0];
-            db.archive.push({ type: type.toUpperCase(), data: item, deletedBy: sessionUser || "Admin", date: new Date().toISOString().split('T')[0] });
+            if (!confirm(`Are you sure you want to archive this ${type} record?`)) return;
+
+            let item;
+            if (type === 'sales') item = db.sales.splice(index, 1)[0];
+            if (type === 'inv') item = db.inv.splice(index, 1)[0];
+            if (type === 'exp') item = db.exp.splice(index, 1)[0];
+
+            // Push to archive with metadata
+            db.archive.push({
+                type: type.toUpperCase(),
+                data: item,
+                deletedBy: sessionUser || "Admin",
+                date: new Date().toISOString().split('T')[0]
+            });
+
             sync();
         }
 
+        // Restore Function
         function restore(index) {
             const archived = db.archive.splice(index, 1)[0];
             const type = archived.type.toLowerCase();
-            db[type].push(archived.data);
+
+            if (type === 'sales') db.sales.push(archived.data);
+            if (type === 'inv') db.inv.push(archived.data);
+            if (type === 'exp') db.exp.push(archived.data);
+
             sync();
         }
 
+        // Permanent Delete
         function purge(index) {
-            if (confirm("Delete permanently?")) { db.archive.splice(index, 1); sync(); }
+            if (confirm("Permanently delete this record? This cannot be undone.")) {
+                db.archive.splice(index, 1);
+                sync();
+            }
         }
-
         function editSale(i) {
             const s = db.sales[i];
             document.getElementById('editSaleIdx').value = i;
             document.getElementById('sDate').value = s.date;
             document.getElementById('sID').value = s.sku;
-            document.getElementById('sName').value = s.sku;
+            document.getElementById('sName').value = s.sku; // Triggers sync
             document.getElementById('sQty').value = s.qty;
             document.getElementById('sBtn').innerText = "Update Sale";
+
+            // Switch to Sales section automatically
             document.querySelector('[data-sec="saleSec"]').click();
         }
 
@@ -1027,6 +1123,7 @@
             document.getElementById('iBuy').value = v.buy;
             document.getElementById('iSell').value = v.sell;
             document.getElementById('iBtn').innerText = "Update Product";
+
             document.querySelector('[data-sec="invSec"]').click();
         }
 
@@ -1037,6 +1134,7 @@
             document.getElementById('eDesc').value = e.desc;
             document.getElementById('eAmt').value = e.amt;
             document.getElementById('eBtn').innerText = "Update Expense";
+
             document.querySelector('[data-sec="expSec"]').click();
         }
 
@@ -1046,70 +1144,32 @@
         function handleLogin() {
             const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
             const user = users.find(x => x.u === u && x.p === p);
-
-            if (user) {
-                if (user.approved) {
-                    sessionUser = user.u;
-                    document.getElementById('authWrapper').style.display = 'none';
-                    // Show Admin Tab only for admins
-                    const adminTab = document.getElementById('adminTab');
-                    if (adminTab) adminTab.style.display = user.role === 'admin' ? 'flex' : 'none';
-
-                    // Set the username in the Settings field
-                    const setU = document.getElementById('setU');
-                    if (setU) setU.value = user.u;
-
-                    sync();
-                } else {
-                    alert("Your access request is still pending admin approval.");
-                }
-            } else {
-                document.getElementById('authError').style.display = 'block';
-            }
+            if (user && user.approved) {
+                sessionUser = user.u;
+                document.getElementById('authWrapper').style.display = 'none';
+                document.getElementById('adminTab').style.display = user.role === 'admin' ? 'flex' : 'none';
+                document.getElementById('setU').value = user.u; sync();
+            } else document.getElementById('authError').style.display = 'block';
         }
 
         function handleReg() {
-            const u = document.getElementById('regUser').value.trim();
-            const p = document.getElementById('regPass').value.trim();
-
-            if (!u || !p) return alert("Please fill in all fields.");
-
-            // Check if username already exists
-            if (users.find(x => x.u === u)) return alert("Username already taken.");
-
-            users.push({ u: u, p: p, approved: false, role: 'user' });
-            save();
-            alert("Request Sent! Please wait for Admin approval.");
-            toggleAuth(false);
+            users.push({ u: document.getElementById('regUser').value, p: document.getElementById('regPass').value, approved: false, role: 'user' });
+            save(); alert("Request Sent. Please wait for approval."); toggleAuth(false);
         }
 
-        function handleLogout() {
-            if (confirm("Are you sure you want to log out?")) location.reload();
+        function handleLogout() { location.reload(); }
+
+        function toggleAuth(r) {
+            document.getElementById('loginBox').style.display = r ? 'none' : 'block';
+            document.getElementById('regBox').style.display = r ? 'block' : 'none';
         }
 
-        function toggleAuth(isReg) {
-            document.getElementById('loginBox').style.display = isReg ? 'none' : 'block';
-            document.getElementById('regBox').style.display = isReg ? 'block' : 'none';
-            document.getElementById('authError').style.display = 'none';
-        }
-
-        /**
-         * Toggles password visibility and updates the icon
-         */
-        function togglePassView(inputId, btn) {
-            const input = document.getElementById(inputId);
-            if (!input) {
-                console.error("Password input not found: " + inputId);
-                return;
-            }
-
-            if (input.type === "password") {
-                input.type = "text";
-                // If it's the login eye icon, change the emoji. If it's a button, change the text.
-                btn.textContent = (btn.tagName === 'SPAN' || btn.classList.contains('eye-icon')) ? "🌙" : "HIDE";
+        function togglePasswordVisibility(inputId, iconElement) {
+            const passInput = document.getElementById(inputId);
+            if (passInput.type === 'password') {
+                passInput.type = 'text'; iconElement.textContent = '🌙';
             } else {
-                input.type = "password";
-                btn.textContent = (btn.tagName === 'SPAN' || btn.classList.contains('eye-icon')) ? "☀️" : "SHOW";
+                passInput.type = 'password'; iconElement.textContent = '☀️';
             }
         }
 
@@ -1117,225 +1177,442 @@
         function handleRegEnter(event) { if (event.key === "Enter") handleReg(); }
 
         // ==========================================
-        // ADMIN USER MANAGEMENT
+        // ADMIN USER MANAGEMENT LOGIC
         // ==========================================
+
         function approve(username) {
             const user = users.find(u => u.u === username);
             if (user) {
                 user.approved = true;
-                save();
-                sync();
+                save(); // Save to localStorage
+                sync(); // Refresh the admin table
                 alert(`Access granted for ${username}`);
             }
         }
 
         function delUser(index) {
             const user = users[index];
-            if (user.u === sessionUser) return alert("You cannot remove your own access.");
-            if (user.role === 'admin') return alert("Cannot delete an admin account.");
 
-            if (confirm(`Permanently remove access for ${user.u}?`)) {
+            // Safety check: Don't let the admin remove themselves
+            if (user.u === sessionUser) {
+                return alert("You cannot remove your own access.");
+            }
+
+            if (confirm(`Are you sure you want to remove access for ${user.u}?`)) {
                 users.splice(index, 1);
                 save();
                 sync();
             }
         }
+        /**
+     * Toggles the visibility of the password fields
+     */
+        function togglePassView(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                btn.textContent = "HIDE";
+            } else {
+                input.type = "password";
+                btn.textContent = "SHOW";
+            }
+        }
 
-        // ==========================================
-        // ACCOUNT SETTINGS
-        // ==========================================
+        /**
+* Logic to update the account credentials
+*/
         function updateAccount() {
             const newU = document.getElementById('setU').value.trim();
             const oldP = document.getElementById('oldP').value;
             const newP = document.getElementById('setP').value;
+            const msgBox = document.getElementById('settingsMsg');
 
+            // 1. Basic Validation
             if (!newU || !oldP) {
-                showSettingsMessage("Username and current password required.", "var(--danger)", "#fff5f5");
+                showSettingsMessage("Username and current password are required.", "var(--danger)", "#fff5f5");
                 return;
             }
 
+            // 2. Find the index of the logged-in user in the global 'users' array
             const userIdx = users.findIndex(u => u.u === sessionUser);
-            if (userIdx === -1) return;
 
-            // Verify Current Password
+            if (userIdx === -1) {
+                showSettingsMessage("User session error. Please log in again.", "var(--danger)", "#fff5f5");
+                return;
+            }
+
+            // 3. Verify Current Password
             if (users[userIdx].p !== oldP) {
                 showSettingsMessage("Incorrect current password.", "var(--danger)", "#fff5f5");
                 return;
             }
 
-            // Check if new username is taken by someone else
-            if (newU !== sessionUser && users.find(u => u.u === newU)) {
-                showSettingsMessage("That username is already taken.", "var(--danger)", "#fff5f5");
-                return;
-            }
-
-            // Update
+            // 4. Update data
             users[userIdx].u = newU;
-            sessionUser = newU;
+            sessionUser = newU; // Keep session synced with new username
 
             if (newP.trim() !== "") {
                 users[userIdx].p = newP;
-                showSettingsMessage("Account updated successfully!", "var(--accent)", "#e6fffa");
+                showSettingsMessage("Success! Username and Password updated.", "var(--accent)", "#e6fffa");
             } else {
-                showSettingsMessage("Username updated!", "var(--accent)", "#e6fffa");
+                showSettingsMessage("Success! Username updated.", "var(--accent)", "#e6fffa");
             }
 
-            save();
+            // 5. Commit to LocalStorage & Clear Inputs
+            save(); // Uses your existing save() function
             document.getElementById('oldP').value = "";
             document.getElementById('setP').value = "";
-            sync();
+
+            // Optional: Refresh any admin tables showing users
+            if (typeof sync === "function") sync();
         }
 
+        /**
+         * Helper to show the status message
+         */
         function showSettingsMessage(text, color, bg) {
             const msgBox = document.getElementById('settingsMsg');
-            if (!msgBox) return;
             msgBox.textContent = text;
             msgBox.style.display = 'block';
             msgBox.style.color = color;
             msgBox.style.background = bg;
             msgBox.style.border = `1px solid ${color}`;
-            setTimeout(() => { msgBox.style.display = 'none'; }, 3000); // Hide after 3s
+        }
+
+        /**
+         * Ensures the toggle button works specifically for these inputs
+         */
+        function togglePassView(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                btn.textContent = "HIDE";
+            } else {
+                input.type = "password";
+                btn.textContent = "SHOW";
+            }
         }
 
         // ==========================================
-        // 7. EXPORT ENGINES (CSV & PDF)
         // ==========================================
-        function getFilteredData() {
-            const sVal = document.getElementById('startDate')?.value;
-            const eVal = document.getElementById('endDate')?.value;
+        // 7. EXPORT ENGINES (DASHBOARD, CSV, PDF)
+        // ==========================================
 
-            const filter = (arr) => {
-                if (!sVal || !eVal) return arr || [];
-                return (arr || []).filter(item => {
-                    return item.date >= sVal && item.date <= eVal;
+        function getFilteredData() {
+            // Ensure we pick up the date values from your UI
+            const startVal = document.getElementById('startDate')?.value || "";
+            const endVal = document.getElementById('endDate')?.value || "";
+
+            const filterByDate = (arr) => {
+                if (!arr) return [];
+                if (!startVal && !endVal) return arr;
+                return arr.filter(item => {
+                    if (!item.date) return false;
+                    // Direct string comparison works for YYYY-MM-DD
+                    if (startVal && item.date < startVal) return false;
+                    if (endVal && item.date > endVal) return false;
+                    return true;
                 });
             };
 
             return {
-                startVal: sVal,
-                endVal: eVal,
-                sales: filter(db.sales),
-                exp: filter(db.exp),
-                inv: db.inv || []
+                startVal,
+                endVal,
+                sales: filterByDate(db.sales),
+                exp: filterByDate(db.exp),
+                inv: db.inv || [],
+                // Calculate Low Stocks dynamically during export
+                low: (db.inv || []).filter(item => Number(item.stock || 0) < 10)
             };
         }
 
-        async function exportDashboardPDF() {
-            const { jsPDF } = window.jspdf;
-            const dash = document.getElementById('dashSec');
-            if (!dash) return alert("Dashboard not found.");
-
+        function exportData(type) {
             try {
-                const canvas = await html2canvas(dash, { scale: 2, useCORS: true });
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const imgWidth = pdfWidth - 20;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                const { startVal, endVal, sales, exp, inv, low } = getFilteredData();
+                const t = (type || "all").toLowerCase();
 
-                pdf.setFontSize(16); pdf.setTextColor(0, 128, 128);
-                pdf.text("POWER UPS BUSINESS SUITE - DASHBOARD", 10, 15);
-                pdf.addImage(imgData, 'PNG', 10, 25, imgWidth, imgHeight);
-                pdf.save("Business_Dashboard_Report.pdf");
-            } catch (e) { console.error("DASH PDF ERROR:", e); }
+                let csv = "POWER UPS BUSINESS REPORT\n";
+                csv += `Range: ${startVal || 'All'} to ${endVal || 'All'}\n\n`;
+
+                // SALES SECTION
+                if (t === "all" || t === "sales") {
+                    csv += "--- SALES REPORT ---\nInvoice,Date,Item,Qty,Total\n";
+                    sales.forEach(s => csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`);
+                    csv += "\n";
+                }
+
+                // EXPENSES SECTION
+                if (t === "all" || t === "exp") {
+                    csv += "--- EXPENSES REPORT ---\nDate,Description,Amount\n";
+                    exp.forEach(e => csv += `${e.date},"${e.desc}",${e.amt}\n`);
+                    csv += "\n";
+                }
+
+                // INVENTORY SECTION
+                if (t === "all" || t === "inv") {
+                    csv += "--- FULL INVENTORY ---\nSKU,Name,Stock,Cost,Price\n";
+                    inv.forEach(i => csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`);
+                    csv += "\n";
+                }
+
+                // LOW STOCKS SECTION (Fixed: Now exports correctly)
+                if (t === "all" || t === "low") {
+                    csv += "--- LOW STOCK ALERT (Under 10 units) ---\nSKU,Product,Current Stock,Status\n";
+                    if (low.length > 0) {
+                        low.forEach(item => csv += `${item.id},"${item.name}",${item.stock},REORDER NOW\n`);
+                    } else {
+                        csv += "No low stock items found.,,,\n";
+                    }
+                }
+
+                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = `PowerUps_${type}_Report.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (err) {
+                console.error("CSV Export Error:", err);
+                alert("CSV Export failed: " + err.message);
+            }
         }
 
-        function exportData(type) {
-            const { startVal, endVal, sales, exp, inv } = getFilteredData();
-            const t = (type || "all").toLowerCase();
+        async function exportDashboardPDF() {
+            console.log("PDF Export Triggered...");
 
-            let csv = "POWER UPS BUSINESS REPORT\n";
-            csv += `Range: ${startVal || 'All'} to ${endVal || 'All'}\n\n`;
-
-            if (t === "all") {
-                const rev = sales.reduce((a, b) => a + Number(b.total || 0), 0);
-                const ex = exp.reduce((a, b) => a + Number(b.amt || 0), 0);
-                csv += `SUMMARY\nRevenue,${rev}\nExpenses,${ex}\nNet,${rev - ex}\n\n`;
+            // 1. Check if libraries are actually loaded in the browser memory
+            const jspdfLib = window.jspdf ? window.jspdf.jsPDF : null;
+            if (!jspdfLib) {
+                return alert("PDF Library (jsPDF) not detected. Please check your internet connection.");
+            }
+            if (typeof html2canvas === 'undefined') {
+                return alert("Screenshot Library (html2canvas) not detected.");
             }
 
-            if (t === "all" || t === "sales") {
-                csv += "SALES\nInvoice,Date,Item,Qty,Total\n";
-                sales.forEach(s => csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`);
-                csv += "\n";
-            }
+            const dash = document.getElementById('dashSec');
+            if (!dash) return alert("Dashboard element (#dashSec) not found on this page.");
 
-            if (t === "all" || t === "exp") {
-                csv += "EXPENSES\nDate,Description,Amount\n";
-                exp.forEach(e => csv += `${e.date},"${e.desc}",${e.amt}\n`);
-                csv += "\n";
-            }
+            try {
+                // 2. Capture the element
+                // We use a slightly lower scale (1.5) to prevent browser crashes on older PCs
+                const canvas = await html2canvas(dash, {
+                    scale: 1.5,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: "#ffffff"
+                });
 
-            if (t === "all" || t === "inv") {
-                csv += "INVENTORY\nSKU,Name,Stock,Cost,Price\n";
-                inv.forEach(i => csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`);
-                csv += "\n";
-            }
+                const imgData = canvas.toDataURL('image/jpeg', 0.8); // Using JPEG reduces file size
 
-            if (t === "all" || t === "low") {
-                csv += "LOW STOCK ALERT\nSKU,Name,Stock\n";
-                db.inv.filter(v => v.stock < 10).forEach(v => csv += `${v.id},"${v.name}",${v.stock}\n`);
-            }
+                // 3. Initialize PDF
+                const pdf = new jspdfLib('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
 
-            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `PowerUps_${t}_Report.csv`;
-            link.click();
+                // 4. Calculate dimensions to fit the page
+                const imgWidth = pdfWidth - 20; // 10mm margins
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                // 5. Add Header
+                pdf.setFontSize(14);
+                pdf.setTextColor(0, 128, 128);
+                pdf.text("POWER UPS BUSINESS SUITE - DASHBOARD", 10, 10);
+
+                // 6. Add Image
+                pdf.addImage(imgData, 'JPEG', 10, 20, imgWidth, imgHeight);
+
+                // 7. Save
+                pdf.save(`Dashboard_Report_${new Date().getTime()}.pdf`);
+                console.log("PDF Export Successful");
+
+            } catch (err) {
+                console.error("PDF ERROR DETAILS:", err);
+                alert("Failed to generate PDF. Error: " + err.message);
+            }
         }
 
         function exportPDF(type = "all") {
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
+
                 const { startVal, endVal, sales, exp, inv } = getFilteredData();
+
                 const t = (type || "all").toLowerCase().replace("sec", "");
-                const formatNum = (v) => Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+                // ---------- FORMAT NUMBER ----------
+                const formatNum = (v) => {
+                    return Number(v || 0).toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                };
 
                 let startY = 20;
 
+                // ---------- LOW STOCK DATA ----------
+                const lowStocks = (db.inv || []).filter(v => Number(v.stock || 0) < 10);
+
+                // ---------- HEADER ----------
+                const addHeader = () => {
+                    doc.setFontSize(18);
+                    doc.setTextColor(0, 128, 128);
+                    doc.text("POWER UPS BUSINESS REPORT", 14, startY);
+
+                    startY += 15;
+                };
+
+                // ---------- TABLE RENDER ----------
                 const renderTable = (title, head, body, moneyCols = []) => {
                     if (!body || body.length === 0) return;
-                    doc.setFontSize(13); doc.setTextColor(0, 128, 128);
+
+                    doc.setFontSize(13);
+                    doc.setTextColor(0, 128, 128);
                     doc.text(title, 14, startY);
 
                     let colStyles = {};
-                    moneyCols.forEach(i => colStyles[i] = { halign: 'right' });
+                    moneyCols.forEach(i => {
+                        colStyles[i] = { halign: 'right' };
+                    });
 
                     doc.autoTable({
-                        head: [head], body: body, startY: startY + 4, theme: 'grid',
-                        styles: { fontSize: 9 }, columnStyles: colStyles,
-                        headStyles: { fillColor: [0, 128, 128], halign: 'center' }
+                        head: [head],
+                        body: body,
+                        startY: startY + 4,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: 9,
+                            cellPadding: 3
+                        },
+                        columnStyles: colStyles,
+                        headStyles: {
+                            fillColor: [0, 128, 128],
+                            textColor: 255,
+                            halign: 'center' // This centers the text horizontally
+                        },
+                        didDrawPage: () => {
+                            const pageHeight = doc.internal.pageSize.height;
+
+                            doc.setFontSize(8);
+                            doc.setTextColor(150);
+                            doc.text("Generated by PowerUps System", 14, pageHeight - 10);
+                        }
                     });
+
                     startY = doc.lastAutoTable.finalY + 10;
                 };
 
-                doc.setFontSize(18); doc.setTextColor(0, 128, 128);
-                doc.text("POWER UPS BUSINESS REPORT", 14, startY);
-                startY += 15;
+                // ---------- START ----------
+                addHeader();
 
+                // ---------- SALES ----------
                 if (t === "all" || t === "sales") {
-                    const body = sales.map(s => [s.invNo, fDate(s.date), s.name, s.qty, formatNum(s.total)]);
-                    const total = sales.reduce((a, b) => a + Number(b.total || 0), 0);
-                    if (body.length) body.push(["", "", "", "TOTAL", formatNum(total)]);
-                    renderTable("SALES REPORT", ["Inv", "Date", "Item", "Qty", "Total"], body, [4]);
+                    const body = (sales || []).map(s => [
+                        s.invNo || "-",
+                        fDate(s.date), // <--- Use fDate here to convert YYYY-MM-DD to MM/DD/YYYY
+                        s.name || "-",
+                        s.qty || 0,
+                        formatNum(s.total)
+                    ]);
+
+                    const total = (sales || []).reduce((sum, s) => sum + Number(s.total || 0), 0);
+
+                    if (body.length) {
+                        body.push(["", "", "", "TOTAL", formatNum(total)]);
+                    } else {
+                        body.push(["No sales data", "", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "SALES REPORT",
+                        ["Invoice", "Date", "Item", "Qty", "Total"],
+                        body,
+                        [4]
+                    );
                 }
 
+                // ---------- EXPENSES ----------
                 if (t === "all" || t === "exp") {
-                    const body = exp.map(e => [fDate(e.date), e.desc, formatNum(e.amt)]);
-                    const total = exp.reduce((a, b) => a + Number(b.amt || 0), 0);
-                    if (body.length) body.push(["", "TOTAL", formatNum(total)]);
-                    renderTable("EXPENSES REPORT", ["Date", "Description", "Amount"], body, [2]);
+                    const body = (exp || []).map(e => [
+                        fDate(e.date), // <--- Use fDate here
+                        e.desc || "-",
+                        formatNum(e.amt)
+                    ]);
+
+                    const total = (exp || []).reduce((sum, e) => sum + Number(e.amt || 0), 0);
+
+                    if (body.length) {
+                        body.push(["", "TOTAL", formatNum(total)]);
+                    } else {
+                        body.push(["No expenses found", "", ""]);
+                    }
+
+                    renderTable(
+                        "EXPENSES REPORT",
+                        ["Date", "Description", "Amount"],
+                        body,
+                        [2]
+                    );
                 }
 
+                // ---------- INVENTORY ----------
                 if (t === "all" || t === "inv") {
-                    const body = inv.map(i => [i.id, i.name, i.stock, formatNum(i.buy), formatNum(i.sell)]);
-                    renderTable("INVENTORY LIST", ["SKU", "Name", "Stock", "Cost", "Price"], body, [3, 4]);
+                    const body = (inv || []).map(i => [
+                        i.id || "-",
+                        i.name || "-",
+                        i.stock || 0,
+                        formatNum(i.buy),
+                        formatNum(i.sell)
+                    ]);
+
+                    if (!body.length) {
+                        body.push(["No inventory data", "", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "INVENTORY LIST",
+                        ["SKU", "Name", "Stock", "Cost", "Price"],
+                        body,
+                        [3, 4]
+                    );
                 }
 
-                doc.save(`PowerUps_${t}_Report.pdf`);
-            } catch (err) { console.error("PDF ERROR:", err); alert("Export Failed"); }
-        }
+                // ---------- LOW STOCKS ----------
+                if (t === "all" || t === "low") {
+                    const body = lowStocks.map(v => [
+                        v.id || "-",
+                        v.name || "-",
+                        v.stock || 0,
+                        v.stock < 10 ? "REORDER" : ""
+                    ]);
 
+                    if (!body.length) {
+                        body.push(["No low stock items", "", "", ""]);
+                    }
+
+                    renderTable(
+                        "LOW STOCK ALERT",
+                        ["SKU", "Product", "Stock", "Status"],
+                        body,
+                        [2]
+                    );
+                }
+
+                // ---------- SAVE ----------
+                doc.save(`PowerUps_${t}_Report.pdf`);
+
+            } catch (err) {
+                console.error("PDF ERROR:", err);
+                alert("Failed to export PDF.");
+            }
+        }
+        const { startVal, endVal, sales, exp, inv } = getFilteredData();
+
+        console.log("FILTER DEBUG:");
+        console.log("startVal:", startVal, "endVal:", endVal);
+        console.log("RAW db.exp:", db.exp);
+        console.log("FILTERED exp:", exp);
         // ==========================================
         // 8. NAVIGATION & DOM EVENTS
         // ==========================================
@@ -1343,24 +1620,13 @@
             document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
             n.classList.add('active');
             document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-
-            const target = document.getElementById(n.dataset.sec);
-            if (target) target.classList.add('active');
-
-            // Only show global filter on Dashboard
-            const gf = document.getElementById('globalFilter');
-            if (gf) gf.style.display = n.dataset.sec === 'dashSec' ? 'flex' : 'none';
+            document.getElementById(n.dataset.sec).classList.add('active');
+            document.getElementById('globalFilter').style.display = n.dataset.sec === 'dashSec' ? 'flex' : 'none';
         });
 
-        // Dropdown Syncing
-        const sID = document.getElementById('sID');
-        const sName = document.getElementById('sName');
-        if (sID && sName) {
-            sID.onchange = (e) => sName.value = e.target.value;
-            sName.onchange = (e) => sID.value = e.target.value;
-        }
+        document.getElementById('sID').onchange = (e) => document.getElementById('sName').value = e.target.value;
+        document.getElementById('sName').onchange = (e) => document.getElementById('sID').value = e.target.value;
 
-        // Start System
         init();
     </script>
 </body>
