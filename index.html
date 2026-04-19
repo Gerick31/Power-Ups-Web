@@ -729,6 +729,19 @@
             const [y, m, dDay] = d.split('-');
             return `${m}/${dDay}/${y}`;
         };
+        // ==========================================
+// FIREBASE CLOUD CONFIGURATION
+// ==========================================
+const firebaseConfig = {
+    // Your specific Singapore Database URL
+    databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+
+// Define the 'rtdb' variable your code is looking for
+const rtdb = firebase.database();
 
         // Fixed Save: Now pushes to Singapore Cloud and Local Storage
         const save = () => {
