@@ -712,73 +712,75 @@
 
     <script>
         // ==========================================
-        // 1. GLOBAL STATE & CONFIG
-        // ==========================================
-        let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
-        let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
-        let sessionUser = null;
-        let myChart = null;
+    // 0. SAFE CLOUD INITIALIZATION
+    // ==========================================
+    const firebaseConfig = {
+        databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    
+    // Initialize only if not already started
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const rtdb = firebase.database();
 
-        // ==========================================
-        // 2. CORE UTILITIES & CLOUD SYNC
-        // ==========================================
-        const fCurrency = (v) => "₱" + parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
-        const pad = (n, s) => n.toString().padStart(s, '0');
-        const fDate = (d) => {
-            if (!d) return "-";
-            const [y, m, dDay] = d.split('-');
-            return `${m}/${dDay}/${y}`;
-        };
+    // ==========================================
+    // 1. GLOBAL STATE & CONFIG
+    // ==========================================
+    // These default values act as a safety net
+    let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
+    let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
+    let sessionUser = null;
+    let myChart = null;
 
-        // Fixed Save: Now pushes to Singapore Cloud and Local Storage
-        const save = () => {
-            localStorage.setItem('Powerups21_db', JSON.stringify(db));
-            localStorage.setItem('Powerups21_users', JSON.stringify(users));
+    // ==========================================
+    // 2. MODIFIED SAVE & INIT (SAFE SYNC)
+    // ==========================================
+    const save = () => {
+        localStorage.setItem('Powerups21_db', JSON.stringify(db));
+        localStorage.setItem('Powerups21_users', JSON.stringify(users));
 
-            if (typeof rtdb !== 'undefined') {
-                rtdb.ref('businessData').set({ db, users })
-                    .then(() => console.log("Cloud Sync: OK"))
-                    .catch(err => console.error("Cloud Sync Error:", err));
-            }
-        };
-
-        // Fixed Init: Loads from Cloud first, then falls back to local
-        function init() {
-            console.log("Initializing system...");
-
-            if (typeof rtdb !== 'undefined') {
-                rtdb.ref('businessData').once('value', (snap) => {
-                    const val = snap.val();
-
-                    // Check Local Storage first as a backup
-                    const sd = localStorage.getItem('Powerups21_db');
-                    const su = localStorage.getItem('Powerups21_users');
-
-                    if (val && val.db) {
-                        // Cloud has data! Use it.
-                        db = val.db;
-                        users = val.users || users;
-                        console.log("✅ Data synced from Singapore Cloud");
-                    } else if (sd) {
-                        // Cloud is empty, but Local has data! Use Local and then Push to Cloud.
-                        db = JSON.parse(sd);
-                        if (su) users = JSON.parse(su);
-                        console.log("🏠 Cloud empty. Using Local Data and uploading...");
-                        save(); // This pushes your local data to the empty cloud
-                    } else {
-                        console.log("🆕 New system: No data found anywhere.");
-                    }
-
-                    startApp();
-                }, (error) => {
-                    console.error("❌ Firebase Read Error:", error);
-                    startApp(); // Still start the app even if cloud fails
-                });
-            } else {
-                console.error("⚠️ rtdb is not defined. Check Firebase script tags.");
-                startApp();
-            }
+        if (typeof rtdb !== 'undefined') {
+            rtdb.ref('businessData').set({ db, users })
+                .then(() => console.log("Cloud Sync: OK"))
+                .catch(err => console.error("Cloud Sync Error:", err));
         }
+    };
+
+    function init() {
+        console.log("Initializing system...");
+        
+        // Load local backup first so UI works immediately
+        const sd = localStorage.getItem('Powerups21_db');
+        const su = localStorage.getItem('Powerups21_users');
+        if (sd) db = JSON.parse(sd);
+        if (su) users = JSON.parse(su);
+
+        if (typeof rtdb !== 'undefined') {
+            rtdb.ref('businessData').once('value', (snap) => {
+                const val = snap.val();
+                if (val && val.db) {
+                    // SAFE MERGE: Ensure every array exists to prevent .map() crashes
+                    db = {
+                        inv: val.db.inv || [],
+                        sales: val.db.sales || [],
+                        exp: val.db.exp || [],
+                        archive: val.db.archive || [],
+                        count: val.db.count || { sku: 1, inv: 1 }
+                    };
+                    users = val.users || users;
+                    console.log("✅ Cloud Synced Successfully");
+                } else {
+                    console.log("🏠 Cloud empty. Uploading...");
+                    save();
+                }
+                startApp();
+            }).catch(e => {
+                console.error("Cloud Failed, using Local:", e);
+                startApp();
+            });
+        } else {
+            startApp();
+        }
+    }
 
         function startApp() {
             migrateData();
