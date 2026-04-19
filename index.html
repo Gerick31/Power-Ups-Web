@@ -718,6 +718,17 @@
         let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
         let sessionUser = null;
         let myChart = null;
+        let rtdb; 
+    try {
+        const firebaseConfig = {
+            databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        rtdb = firebase.database();
+        console.log("Cloud initialized successfully.");
+    } catch (e) {
+        console.error("Firebase skip: local mode only.", e);
+    }
 
         // ==========================================
         // 2. CORE UTILITIES & CLOUD SYNC
