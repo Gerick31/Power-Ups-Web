@@ -731,56 +731,64 @@
     let sessionUser = null;
     let myChart = null;
 
-    // ==========================================
-    // 2. MODIFIED SAVE & INIT (SAFE SYNC)
-    // ==========================================
-    const save = () => {
-        localStorage.setItem('Powerups21_db', JSON.stringify(db));
-        localStorage.setItem('Powerups21_users', JSON.stringify(users));
+   // ==========================================
+// SAFE CLOUD LOGIC
+// ==========================================
+const save = () => {
+    // 1. Always save to local first as a safety backup
+    localStorage.setItem('Powerups21_db', JSON.stringify(db));
+    localStorage.setItem('Powerups21_users', JSON.stringify(users));
 
-        if (typeof rtdb !== 'undefined') {
-            rtdb.ref('businessData').set({ db, users })
-                .then(() => console.log("Cloud Sync: OK"))
-                .catch(err => console.error("Cloud Sync Error:", err));
-        }
-    };
-
-    function init() {
-        console.log("Initializing system...");
-        
-        // Load local backup first so UI works immediately
-        const sd = localStorage.getItem('Powerups21_db');
-        const su = localStorage.getItem('Powerups21_users');
-        if (sd) db = JSON.parse(sd);
-        if (su) users = JSON.parse(su);
-
-        if (typeof rtdb !== 'undefined') {
-            rtdb.ref('businessData').once('value', (snap) => {
-                const val = snap.val();
-                if (val && val.db) {
-                    // SAFE MERGE: Ensure every array exists to prevent .map() crashes
-                    db = {
-                        inv: val.db.inv || [],
-                        sales: val.db.sales || [],
-                        exp: val.db.exp || [],
-                        archive: val.db.archive || [],
-                        count: val.db.count || { sku: 1, inv: 1 }
-                    };
-                    users = val.users || users;
-                    console.log("✅ Cloud Synced Successfully");
-                } else {
-                    console.log("🏠 Cloud empty. Uploading...");
-                    save();
-                }
-                startApp();
-            }).catch(e => {
-                console.error("Cloud Failed, using Local:", e);
-                startApp();
+    // 2. Only push to cloud if connected
+    if (typeof rtdb !== 'undefined') {
+        rtdb.ref('businessData').set({ db, users })
+            .then(() => console.log("Cloud Sync: OK"))
+            .catch(err => {
+                console.error("Cloud Sync Error:", err);
+                // If cloud fails, we still have local storage!
             });
-        } else {
-            startApp();
-        }
     }
+};
+
+function init() {
+    console.log("Initializing system...");
+    
+    // Step A: Load from Local Storage IMMEDIATELY so buttons work right away
+    const sd = localStorage.getItem('Powerups21_db');
+    const su = localStorage.getItem('Powerups21_users');
+    if (sd) db = JSON.parse(sd);
+    if (su) users = JSON.parse(su);
+
+    // Step B: Connect to Cloud and update data
+    if (typeof rtdb !== 'undefined') {
+        rtdb.ref('businessData').once('value', (snap) => {
+            const val = snap.val();
+            if (val && val.db) {
+                // IMPORTANT: We use "|| []" to ensure every array exists.
+                // This prevents the "map is not a function" error that stops your app.
+                db = {
+                    inv: val.db.inv || [],
+                    sales: val.db.sales || [],
+                    exp: val.db.exp || [],
+                    archive: val.db.archive || [],
+                    count: val.db.count || { sku: 1, inv: 1 }
+                };
+                users = val.users || users;
+                console.log("✅ Cloud Synced. UI Refreshing...");
+            } else {
+                console.log("🏠 Cloud empty. Uploading current local data...");
+                save();
+            }
+            // Always call startApp after sync
+            startApp();
+        }).catch(err => {
+            console.error("Firebase Sync Error:", err);
+            startApp(); // Start anyway using local data
+        });
+    } else {
+        startApp();
+    }
+}
 
         function startApp() {
             migrateData();
