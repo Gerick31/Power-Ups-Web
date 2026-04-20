@@ -1050,31 +1050,46 @@ function init() {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editSaleIdx').value);
             const sku = document.getElementById('sID').value;
-            const qty = parseInt(document.getElementById('sQty').value);
-            const prod = db.inv.find(i => i.id === sku);
+            const qty = parseInt(document.getElementById('sQty').value || 0);
             const disc = parseFloat(document.getElementById('sDisc').value || 0);
+        
+            const prod = db.inv.find(i => i.id === sku);
+            if (!prod) return alert("Select a product!");
+            if (qty <= 0) return alert("Enter a valid quantity");
+        
             const total = (qty * prod.sell) * (1 - (disc / 100));
-
+        
             if (idx === -1) {
-                if (prod.stock < qty) return alert("Low Stock");
+                if (prod.stock < qty) return alert("Insufficient Stock!");
                 prod.stock -= qty;
-                db.sales.push({ invNo: "INV-" + pad(db.count.inv++, 6), date: document.getElementById('sDate').value, sku, name: prod.name, qty, total, cost: prod.buy });
+                db.sales.push({ 
+                    invNo: "INV-" + pad(db.count.inv++, 6), 
+                    date: document.getElementById('sDate').value, 
+                    sku: sku, 
+                    name: prod.name, 
+                    qty: qty, 
+                    total: total, 
+                    cost: prod.buy 
+                });
             } else {
-                const old = db.sales[idx]; prod.stock += old.qty;
-                if (prod.stock < qty) { prod.stock -= old.qty; return alert("Low Stock"); }
+                const old = db.sales[idx];
+                // Revert old stock first
+                const oldProd = db.inv.find(i => i.name === old.name);
+                if(oldProd) oldProd.stock += old.qty;
+        
+                if (prod.stock < qty) {
+                    if(oldProd) oldProd.stock -= old.qty; // Re-revert if failed
+                    return alert("Insufficient Stock!");
+                }
                 prod.stock -= qty;
                 db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
             }
-            e.target.reset(); document.getElementById('editSaleIdx').value = "-1"; setDefaultDates(); sync();
-        };
-
-        document.getElementById('invForm').onsubmit = (e) => {
-            e.preventDefault();
-            const idx = parseInt(document.getElementById('editInvIdx').value);
-            const data = { name: document.getElementById('iName').value, stock: parseInt(document.getElementById('iStock').value), buy: parseFloat(document.getElementById('iBuy').value), sell: parseFloat(document.getElementById('iSell').value) };
-            if (idx === -1) { data.id = "P" + pad(db.count.sku++, 6); db.inv.push(data); }
-            else { db.inv[idx] = { ...db.inv[idx], ...data }; }
-            e.target.reset(); document.getElementById('editInvIdx').value = "-1"; sync();
+        
+            e.target.reset();
+            document.getElementById('editSaleIdx').value = "-1";
+            document.getElementById('sBtn').innerText = "Record Sale"; // Reset button text
+            setDefaultDates();
+            sync();
         };
 
         document.getElementById('expForm').onsubmit = (e) => {
@@ -1094,25 +1109,28 @@ function init() {
             save(); sync(); renderExpenses();
         }
         // Universal Archive Function
+        
         function archive(type, index) {
-            if (!confirm(`Are you sure you want to archive this ${type} record?`)) return;
-
+            const msg = `Are you sure you want to archive this ${type} record?`;
+            if (!confirm(msg)) return;
+        
             let item;
+            // We use index directly from the global array
             if (type === 'sales') item = db.sales.splice(index, 1)[0];
-            if (type === 'inv') item = db.inv.splice(index, 1)[0];
-            if (type === 'exp') item = db.exp.splice(index, 1)[0];
-
-            // Push to archive with metadata
-            db.archive.push({
-                type: type.toUpperCase(),
-                data: item,
-                deletedBy: sessionUser || "Admin",
-                date: new Date().toISOString().split('T')[0]
-            });
-
-            sync();
+            else if (type === 'inv') item = db.inv.splice(index, 1)[0];
+            else if (type === 'exp') item = db.exp.splice(index, 1)[0];
+        
+            if (item) {
+                db.archive.push({
+                    type: type.toUpperCase(),
+                    data: item,
+                    deletedBy: sessionUser || "Admin",
+                    date: new Date().toISOString().split('T')[0]
+                });
+                save();
+                sync();
+            }
         }
-
         // Restore Function
         function restore(index) {
             const archived = db.archive.splice(index, 1)[0];
