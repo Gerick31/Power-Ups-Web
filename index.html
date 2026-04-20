@@ -930,32 +930,33 @@
 
             let dailyData = {};
 
-            // Use Number() to prevent "NaN" errors
+            // 1. Process Sales Data
             (filteredSales || []).forEach(s => {
                 if (!s.date) return;
                 if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
                 dailyData[s.date].rev += Number(s.total || 0);
             });
 
+            // 2. Process Expense Data
             (filteredExpenses || []).forEach(e => {
                 if (!e.date) return;
                 if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
                 dailyData[e.date].exp += Number(e.amt || 0);
             });
 
+            // 3. Sort dates to ensure the graph flows correctly (YYYY-MM-DD sorting)
             const lbls = Object.keys(dailyData).sort();
 
-            // If no data, show a "placeholder" or log it
             if (lbls.length === 0) {
                 console.warn("No data found for the chart in this date range.");
             }
 
-            if (myChart) myChart.destroy();
+            if (window.myChart) window.myChart.destroy();
 
-            myChart = new Chart(ctx, {
+            window.myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    // FIX 1: Format the dates for the bottom labels
+                    // FIX: Convert YYYY-MM-DD keys to MM/DD/YYYY for the display
                     labels: lbls.map(l => fDate(l)),
                     datasets: [
                         {
@@ -981,8 +982,8 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
-                            // This is the magic line for flexibility
-                            suggestedMin: 0,
+                            suggestedMin: 0, // Starts at 0, but allows negatives if they exist
+                            grace: 0,        // Removes the "extra padding" that causes the -200
                             ticks: {
                                 callback: (v) => '₱' + v.toLocaleString()
                             }
@@ -993,9 +994,21 @@
                                 minRotation: 45
                             }
                         }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
                     }
                 }
             });
+        }
+
+        // Ensure your fDate helper is available
+        function fDate(dateStr) {
+            if (!dateStr || dateStr === "None") return "None";
+            const [y, m, d] = dateStr.split('-');
+            return `${m}/${d}/${y}`;
         }
         function handleMonthYearChange() {
             // ... your filtering logic for the specific month/year ...
@@ -1046,7 +1059,6 @@
             const [year, month, day] = dateStr.split('-');
             return `${month}/${day}/${year}`;
         }
-                
         function renderExpenses() {
             const tbody = document.getElementById("expTableBody");
             if (!tbody) return;
