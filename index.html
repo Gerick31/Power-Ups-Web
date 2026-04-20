@@ -1004,6 +1004,21 @@ function init() {
             document.getElementById('headTotalExp').innerText = "Total Expense: " + fCurrency(db.exp.reduce((a, b) => a + b.amt, 0));
             document.getElementById('headTotalLow').innerText = "Low Stock Items: " + db.inv.filter(v => v.stock < 10).length;
         }
+        function pad(num, size) {
+            let s = num + "";
+            while (s.length < size) s = "0" + s;
+            return s;
+        }
+        
+        function fCurrency(num) {
+            return "₱" + Number(num || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+        
+        function fDate(str) {
+            if(!str) return "N/A";
+            const d = new Date(str);
+            return d.toLocaleDateString();
+        }
         function renderExpenses() {
             const tbody = document.getElementById("expTableBody");
             if (!tbody) return;
@@ -1089,6 +1104,34 @@ function init() {
             document.getElementById('editSaleIdx').value = "-1";
             document.getElementById('sBtn').innerText = "Record Sale"; // Reset button text
             setDefaultDates();
+            sync();
+        };
+        document.getElementById('invForm').onsubmit = (e) => {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('editInvIdx').value);
+            
+            const name = document.getElementById('iName').value;
+            const stock = parseInt(document.getElementById('iStock').value || 0);
+            const buy = parseFloat(document.getElementById('iBuy').value || 0);
+            const sell = parseFloat(document.getElementById('iSell').value || 0);
+        
+            if (idx === -1) {
+                // ADD NEW PRODUCT
+                const newID = "P" + pad(db.count.sku++, 6);
+                db.inv.push({ id: newID, name, stock, buy, sell });
+            } else {
+                // UPDATE EXISTING PRODUCT
+                // We keep the original ID but update the details
+                const oldId = db.inv[idx].id;
+                db.inv[idx] = { id: oldId, name, stock, buy, sell };
+            }
+        
+            // Reset Form
+            e.target.reset();
+            document.getElementById('editInvIdx').value = "-1";
+            document.getElementById('iBtn').innerText = "Add Product";
+            
+            save(); 
             sync();
         };
 
