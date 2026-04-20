@@ -876,8 +876,16 @@
                 itemMap[s.name] = (itemMap[s.name] || 0) + s.qty;
             });
 
+            // Find this part near the bottom of updateDash
             let peakDate = "None", peakAmt = 0;
-            for (const d in dailyTotals) { if (dailyTotals[d] > peakAmt) { peakAmt = dailyTotals[d]; peakDate = d; } }
+            for (const d in dailyTotals) { 
+                if (dailyTotals[d] > peakAmt) { 
+                    peakAmt = dailyTotals[d]; 
+                    peakDate = d; 
+                } 
+            }
+            
+            // FIX: Ensure fDate is wrapping the peakDate
             document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
 
             let bestItem = "None", maxQty = 0;
