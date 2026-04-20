@@ -527,9 +527,9 @@
                 <div class="dash-card" style="border-left: 5px solid #3498db;"><span>Projected Income</span><h3 id="projIncome">₱0.00</h3></div>
                 <div class="dash-card" style="border-left: 5px solid #9b59b6;"><span>Asset Value</span><h3 id="headTotalInvDash">₱0.00</h3></div>
             </div>
-                <div style="background:white; padding:25px; border-radius:16px; border:1px solid #ddd; margin-top:20px; height:350px;">
-                    <canvas id="mainChart"></canvas>
-                </div>
+            <div style="background:white; padding:25px; border-radius:16px; border:1px solid #ddd; margin-top:20px; height:350px;">
+                <canvas id="mainChart"></canvas>
+            </div>
         </section>
 
         <section id="saleSec">
@@ -717,11 +717,11 @@
         const firebaseConfig = {
             databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
-        
+
         // Initialize only if not already started
         if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const rtdb = firebase.database();
-    
+
         // ==========================================
         // 1. GLOBAL STATE & CONFIG
         // ==========================================
@@ -730,32 +730,32 @@
         let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
         let sessionUser = null;
         let myChart = null;
-    
-       // ==========================================
+
+        // ==========================================
         // SAFE CLOUD LOGIC
         // ==========================================
         const save = () => {
-        localStorage.setItem('Powerups21_db', JSON.stringify(db));
-        localStorage.setItem('Powerups21_users', JSON.stringify(users));
-        // Record current time as "Last Seen"
-        localStorage.setItem('Powerups21_lastActive', Date.now()); 
-    
-        if (typeof rtdb !== 'undefined') {
-            rtdb.ref('businessData').set({ db, users })
-                .then(() => console.log("Cloud Sync: OK"))
-                .catch(err => console.error("Cloud Sync Error:", err));
-        }
-    };
+            localStorage.setItem('Powerups21_db', JSON.stringify(db));
+            localStorage.setItem('Powerups21_users', JSON.stringify(users));
+            // Record current time as "Last Seen"
+            localStorage.setItem('Powerups21_lastActive', Date.now());
+
+            if (typeof rtdb !== 'undefined') {
+                rtdb.ref('businessData').set({ db, users })
+                    .then(() => console.log("Cloud Sync: OK"))
+                    .catch(err => console.error("Cloud Sync Error:", err));
+            }
+        };
 
         function init() {
             const sd = localStorage.getItem('Powerups21_db');
             const su = localStorage.getItem('Powerups21_users');
             const ss = localStorage.getItem('Powerups21_session');
             const lastActive = localStorage.getItem('Powerups21_lastActive');
-        
+
             if (sd) db = JSON.parse(sd);
             if (su) users = JSON.parse(su);
-        
+
             // CHECK AUTO-LOGOUT TIMER (60000ms = 1 minute)
             const now = Date.now();
             if (ss && lastActive && (now - lastActive > 60000)) {
@@ -765,7 +765,7 @@
             } else {
                 sessionUser = ss;
             }
-        
+
             if (typeof rtdb !== 'undefined') {
                 rtdb.ref('businessData').once('value', (snap) => {
                     const val = snap.val();
@@ -788,7 +788,7 @@
         function startApp() {
             migrateData();
             setDefaultDates();
-            
+
             // If a session was restored from localStorage, hide the login screen
             if (sessionUser) {
                 const userObj = users.find(u => u.u === sessionUser);
@@ -799,7 +799,7 @@
                 }
                 sync();
             }
-        
+
             if (typeof renderExpenses === 'function') renderExpenses();
             if (document.getElementById('fYear')) handleMonthYearChange();
         }
@@ -878,13 +878,13 @@
 
             // Find this part near the bottom of updateDash
             let peakDate = "None", peakAmt = 0;
-            for (const d in dailyTotals) { 
-                if (dailyTotals[d] > peakAmt) { 
-                    peakAmt = dailyTotals[d]; 
-                    peakDate = d; 
-                } 
+            for (const d in dailyTotals) {
+                if (dailyTotals[d] > peakAmt) {
+                    peakAmt = dailyTotals[d];
+                    peakDate = d;
+                }
             }
-            
+
             // FIX: Ensure fDate is wrapping the peakDate
             document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
 
@@ -927,41 +927,42 @@
             const chartEl = document.getElementById('mainChart');
             if (!chartEl) return;
             const ctx = chartEl.getContext('2d');
-        
+
             let dailyData = {};
-        
+
             // Use Number() to prevent "NaN" errors
             (filteredSales || []).forEach(s => {
                 if (!s.date) return;
                 if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
                 dailyData[s.date].rev += Number(s.total || 0);
             });
-        
+
             (filteredExpenses || []).forEach(e => {
                 if (!e.date) return;
                 if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
                 dailyData[e.date].exp += Number(e.amt || 0);
             });
-        
+
             const lbls = Object.keys(dailyData).sort();
-            
+
             // If no data, show a "placeholder" or log it
             if (lbls.length === 0) {
                 console.warn("No data found for the chart in this date range.");
             }
-        
+
             if (myChart) myChart.destroy();
-        
+
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: lbls,
+                    // FIX 1: Format the dates for the bottom labels
+                    labels: lbls.map(l => fDate(l)),
                     datasets: [
                         {
                             label: 'Revenue',
                             data: lbls.map(l => dailyData[l].rev),
                             borderColor: '#008080',
-                            backgroundColor: 'rgba(0, 128, 128, 0.1)', // Light teal fill
+                            backgroundColor: 'rgba(0, 128, 128, 0.1)',
                             tension: 0.3,
                             fill: true
                         },
@@ -979,9 +980,18 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            ticks: { callback: (v) => '₱' + v.toLocaleString() } 
+                        y: {
+                            // This is the magic line for flexibility
+                            suggestedMin: 0,
+                            ticks: {
+                                callback: (v) => '₱' + v.toLocaleString()
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
                         }
                     }
                 }
@@ -989,17 +999,17 @@
         }
         function handleMonthYearChange() {
             // ... your filtering logic for the specific month/year ...
-            
+
             // AFTER filtering, you MUST call the chart function:
-            renderChart(filteredSales, filteredExpenses); 
+            renderChart(filteredSales, filteredExpenses);
         }
 
         // ==========================================
         // 4. UI RENDERING & SYNC
         // ==========================================
         function sync() {
-             // Add this at the bottom of sync() to update the graph:
-            renderChart(db.sales, db.exp); 
+            // Add this at the bottom of sync() to update the graph:
+            renderChart(db.sales, db.exp);
             save();
             updateDash();
             updateDropdowns();
@@ -1012,9 +1022,9 @@
             r('adminTableBody', users.map((u, i) => `<tr><td>${u.u}</td><td>${u.approved ? 'Active' : 'Pending'}</td><td>${!u.approved ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>` : ''} ${u.role !== 'admin' ? `<button class="btn-sm" style="background:var(--danger)" onclick="delUser(${i})">Remove Access</button>` : ''}</td></tr>`).join(''));
 
             r('lowTableBody', db.inv.filter(v => v.stock < 10).map(v => `
-                        <tr style="color:black;">
-                            <td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>Reorder</td>
-                        </tr>`).join(''));
+                            <tr style="color:black;">
+                                <td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>Reorder</td>
+                            </tr>`).join(''));
 
             document.getElementById('headTotalSales').innerText = "Total Sales: " + fCurrency(db.sales.reduce((a, b) => a + b.total, 0));
             document.getElementById('headTotalInv').innerText = "Asset Value: " + fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
@@ -1026,13 +1036,13 @@
             while (s.length < size) s = "0" + s;
             return s;
         }
-        
+
         function fCurrency(num) {
-            return "₱" + Number(num || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            return "₱" + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-        
+
         function fDate(str) {
-            if(!str) return "N/A";
+            if (!str) return "N/A";
             const d = new Date(str);
             return d.toLocaleDateString();
         }
@@ -1046,12 +1056,12 @@
             }
             db.exp.forEach((e, i) => {
                 tbody.innerHTML += `<tr>
-                            <td>${fDate(e.date)}</td><td>${e.desc}</td><td>${fCurrency(e.amt)}</td>
-                            <td>
-                                <button class="btn-sm" style="background:var(--warning)" onclick="editExp(${i})">Edit</button>
-                                <button class="btn-sm" style="background:var(--danger)" onclick="archive('exp', ${i})">Del</button>
-                            </td>
-                        </tr>`;
+                                <td>${fDate(e.date)}</td><td>${e.desc}</td><td>${fCurrency(e.amt)}</td>
+                                <td>
+                                    <button class="btn-sm" style="background:var(--warning)" onclick="editExp(${i})">Edit</button>
+                                    <button class="btn-sm" style="background:var(--danger)" onclick="archive('exp', ${i})">Del</button>
+                                </td>
+                            </tr>`;
             });
         }
 
@@ -1084,39 +1094,39 @@
             const sku = document.getElementById('sID').value;
             const qty = parseInt(document.getElementById('sQty').value || 0);
             const disc = parseFloat(document.getElementById('sDisc').value || 0);
-        
+
             const prod = db.inv.find(i => i.id === sku);
             if (!prod) return alert("Select a product!");
             if (qty <= 0) return alert("Enter a valid quantity");
-        
+
             const total = (qty * prod.sell) * (1 - (disc / 100));
-        
+
             if (idx === -1) {
                 if (prod.stock < qty) return alert("Insufficient Stock!");
                 prod.stock -= qty;
-                db.sales.push({ 
-                    invNo: "INV-" + pad(db.count.inv++, 6), 
-                    date: document.getElementById('sDate').value, 
-                    sku: sku, 
-                    name: prod.name, 
-                    qty: qty, 
-                    total: total, 
-                    cost: prod.buy 
+                db.sales.push({
+                    invNo: "INV-" + pad(db.count.inv++, 6),
+                    date: document.getElementById('sDate').value,
+                    sku: sku,
+                    name: prod.name,
+                    qty: qty,
+                    total: total,
+                    cost: prod.buy
                 });
             } else {
                 const old = db.sales[idx];
                 // Revert old stock first
                 const oldProd = db.inv.find(i => i.name === old.name);
-                if(oldProd) oldProd.stock += old.qty;
-        
+                if (oldProd) oldProd.stock += old.qty;
+
                 if (prod.stock < qty) {
-                    if(oldProd) oldProd.stock -= old.qty; // Re-revert if failed
+                    if (oldProd) oldProd.stock -= old.qty; // Re-revert if failed
                     return alert("Insufficient Stock!");
                 }
                 prod.stock -= qty;
                 db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
             }
-        
+
             e.target.reset();
             document.getElementById('editSaleIdx').value = "-1";
             document.getElementById('sBtn').innerText = "Record Sale"; // Reset button text
@@ -1126,12 +1136,12 @@
         document.getElementById('invForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editInvIdx').value);
-            
+
             const name = document.getElementById('iName').value;
             const stock = parseInt(document.getElementById('iStock').value || 0);
             const buy = parseFloat(document.getElementById('iBuy').value || 0);
             const sell = parseFloat(document.getElementById('iSell').value || 0);
-        
+
             if (idx === -1) {
                 // ADD NEW PRODUCT
                 const newID = "P" + pad(db.count.sku++, 6);
@@ -1142,13 +1152,13 @@
                 const oldId = db.inv[idx].id;
                 db.inv[idx] = { id: oldId, name, stock, buy, sell };
             }
-        
+
             // Reset Form
             e.target.reset();
             document.getElementById('editInvIdx').value = "-1";
             document.getElementById('iBtn').innerText = "Add Product";
-            
-            save(); 
+
+            save();
             sync();
         };
 
@@ -1169,17 +1179,17 @@
             save(); sync(); renderExpenses();
         }
         // Universal Archive Function
-        
+
         function archive(type, index) {
             const msg = `Are you sure you want to archive this ${type} record?`;
             if (!confirm(msg)) return;
-        
+
             let item;
             // We use index directly from the global array
             if (type === 'sales') item = db.sales.splice(index, 1)[0];
             else if (type === 'inv') item = db.inv.splice(index, 1)[0];
             else if (type === 'exp') item = db.exp.splice(index, 1)[0];
-        
+
             if (item) {
                 db.archive.push({
                     type: type.toUpperCase(),
@@ -1253,15 +1263,15 @@
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
             const user = users.find(x => x.u === u && x.p === p);
-        
+
             if (user && user.approved) {
                 sessionUser = user.u;
                 // ADD THIS: Save session to localStorage
-                localStorage.setItem('Powerups21_session', user.u); 
-        
+                localStorage.setItem('Powerups21_session', user.u);
+
                 document.getElementById('authWrapper').style.display = 'none';
                 document.getElementById('adminTab').style.display = user.role === 'admin' ? 'flex' : 'none';
-                document.getElementById('setU').value = user.u; 
+                document.getElementById('setU').value = user.u;
                 sync();
             } else {
                 document.getElementById('authError').style.display = 'block';
@@ -1274,12 +1284,12 @@
         }
 
         function handleLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            // ADD THIS: Clear the session
-            localStorage.removeItem('Powerups21_session'); 
-            location.reload();
+            if (confirm("Are you sure you want to log out?")) {
+                // ADD THIS: Clear the session
+                localStorage.removeItem('Powerups21_session');
+                location.reload();
+            }
         }
-    }
 
         function toggleAuth(r) {
             document.getElementById('loginBox').style.display = r ? 'none' : 'block';
@@ -1687,11 +1697,11 @@
                         formatNum(i.buy),
                         formatNum(i.sell)
                     ]);
-                
+
                     // Calculate totals for Buy and Sell (Price * Stock)
                     const totalBuy = (inv || []).reduce((sum, i) => sum + (Number(i.buy || 0) * Number(i.stock || 0)), 0);
                     const totalSell = (inv || []).reduce((sum, i) => sum + (Number(i.sell || 0) * Number(i.stock || 0)), 0);
-                
+
                     if (!body.length) {
                         body.push(["No inventory data", "", "", "", ""]);
                     } else {
@@ -1700,11 +1710,11 @@
                             "TOTAL VALUE", // SKU column
                             "",            // Name column
                             "",            // Stock column (Excluded)
-                            formatNum(totalBuy), 
+                            formatNum(totalBuy),
                             formatNum(totalSell)
                         ]);
                     }
-                
+
                     renderTable(
                         "INVENTORY LIST",
                         ["SKU", "Name", "Stock", "Cost", "Price"],
@@ -1766,7 +1776,7 @@
                 localStorage.setItem('Powerups21_lastActive', Date.now());
             }
         }, 10000);
-        
+
         // Also update it when the user closes the tab
         window.onbeforeunload = () => {
             if (sessionUser) {
