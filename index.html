@@ -826,7 +826,7 @@
 
             const fs = filter(db.sales), fe = filter(db.exp);
             const rev = fs.reduce((a, b) => a + b.total, 0);
-            const cogs = fs.reduce((a, b) => a + (b.qty * (b.cost || 0)), 0);
+            const cogs = fs.reduce((a, b) => a + (parseFloat(b.qty || 0) * parseFloat(b.cost || 0)), 0);
             const op = fe.reduce((a, b) => a + b.amt, 0);
             const netProfit = rev - cogs - op;
 
