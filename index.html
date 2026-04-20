@@ -1041,11 +1041,12 @@
             return "₱" + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function fDate(str) {
-            if (!str) return "N/A";
-            const d = new Date(str);
-            return d.toLocaleDateString();
+        function fDate(dateStr) {
+            if (!dateStr) return "N/A";
+            const [year, month, day] = dateStr.split('-');
+            return `${month}/${day}/${year}`;
         }
+                
         function renderExpenses() {
             const tbody = document.getElementById("expTableBody");
             if (!tbody) return;
