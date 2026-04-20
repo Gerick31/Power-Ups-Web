@@ -527,9 +527,9 @@
                 <div class="dash-card" style="border-left: 5px solid #3498db;"><span>Projected Income</span><h3 id="projIncome">₱0.00</h3></div>
                 <div class="dash-card" style="border-left: 5px solid #9b59b6;"><span>Asset Value</span><h3 id="headTotalInvDash">₱0.00</h3></div>
             </div>
-                <div style="height: 400px;">
+                <div id="chartContainer" style="position: relative; height: 350px; width: 100%;">
                     <canvas id="mainChart"></canvas>
-                 </div>
+                </div>
         </section>
 
         <section id="saleSec">
@@ -907,56 +907,69 @@ function init() {
         }
 
         function renderChart(filteredSales, filteredExpenses) {
-            const chartEl = document.getElementById('mainChart');
-            if (!chartEl) return;
-            const ctx = chartEl.getContext('2d');
+    const chartEl = document.getElementById('mainChart');
+    if (!chartEl) return;
+    const ctx = chartEl.getContext('2d');
 
-            let dailyData = {};
-            (filteredSales || []).forEach(s => {
-                if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
-                dailyData[s.date].rev += Number(s.total || 0);
-            });
-            (filteredExpenses || []).forEach(e => {
-                if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
-                dailyData[e.date].exp += Number(e.amt || 0);
-            });
+    let dailyData = {};
 
-            const lbls = Object.keys(dailyData).sort();
-            if (myChart) myChart.destroy();
+    // Use Number() to prevent "NaN" errors
+    (filteredSales || []).forEach(s => {
+        if (!s.date) return;
+        if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
+        dailyData[s.date].rev += Number(s.total || 0);
+    });
 
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: lbls,
-                    datasets: [
-                        {
-                            label: 'Revenue',
-                            data: lbls.map(l => dailyData[l].rev),
-                            borderColor: '#008080',
-                            backgroundColor: 'transparent',
-                            tension: 0.3,
-                            borderWidth: 3
-                        },
-                        {
-                            label: 'Expenses',
-                            data: lbls.map(l => dailyData[l].exp),
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            tension: 0.3,
-                            borderWidth: 3,
-                            fill: true
-                        }
-                    ]
+    (filteredExpenses || []).forEach(e => {
+        if (!e.date) return;
+        if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
+        dailyData[e.date].exp += Number(e.amt || 0);
+    });
+
+    const lbls = Object.keys(dailyData).sort();
+    
+    // If no data, show a "placeholder" or log it
+    if (lbls.length === 0) {
+        console.warn("No data found for the chart in this date range.");
+    }
+
+    if (myChart) myChart.destroy();
+
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: lbls,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: lbls.map(l => dailyData[l].rev),
+                    borderColor: '#008080',
+                    backgroundColor: 'rgba(0, 128, 128, 0.1)', // Light teal fill
+                    tension: 0.3,
+                    fill: true
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, ticks: { callback: (v) => '₱' + v.toLocaleString() } }
-                    }
+                {
+                    label: 'Expenses',
+                    data: lbls.map(l => dailyData[l].exp),
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    tension: 0.3,
+                    fill: true
                 }
-            });
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { callback: (v) => '₱' + v.toLocaleString() } 
+                }
+            }
         }
+    });
+}
         function handleMonthYearChange() {
             // ... your filtering logic for the specific month/year ...
             
@@ -988,6 +1001,9 @@ function init() {
             document.getElementById('headTotalInv').innerText = "Asset Value: " + fCurrency(db.inv.reduce((a, b) => a + (b.stock * b.buy), 0));
             document.getElementById('headTotalExp').innerText = "Total Expense: " + fCurrency(db.exp.reduce((a, b) => a + b.amt, 0));
             document.getElementById('headTotalLow').innerText = "Low Stock Items: " + db.inv.filter(v => v.stock < 10).length;
+        }
+            // Add this at the bottom of sync() to update the graph:
+            renderChart(db.sales, db.exp); 
         }
 
         function renderExpenses() {
