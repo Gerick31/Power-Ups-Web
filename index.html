@@ -1167,7 +1167,11 @@ function init() {
             save(); alert("Request Sent. Please wait for approval."); toggleAuth(false);
         }
 
-        function handleLogout() { location.reload(); }
+        function handleLogout() {
+            if (confirm("Are you sure you want to log out? Any unsaved changes may be lost.")) {
+                location.reload();
+            }
+        }
 
         function toggleAuth(r) {
             document.getElementById('loginBox').style.display = r ? 'none' : 'block';
