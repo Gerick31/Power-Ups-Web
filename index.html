@@ -826,11 +826,11 @@
 
             const fs = filter(db.sales), fe = filter(db.exp);
             const rev = fs.reduce((a, b) => a + b.total, 0);
-            // Replace your cogs line with this:
             const cogs = fs.reduce((a, b) => {
-                const invItem = db.inv.find(i => i.name === b.name);
-                const actualBuyPrice = invItem ? invItem.buy : (b.cost || 0);
-                return a + (b.qty * actualBuyPrice);
+                // Find the item regardless of Capital Letters or extra spaces
+                const itemInInv = db.inv.find(i => i.name.trim().toLowerCase() === b.name.trim().toLowerCase());
+                const currentBuyPrice = itemInInv ? itemInInv.buy : (b.cost || 0);
+                return a + (b.qty * currentBuyPrice);
             }, 0);
             const op = fe.reduce((a, b) => a + b.amt, 0);
             const netProfit = rev - cogs - op;
