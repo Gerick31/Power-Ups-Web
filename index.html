@@ -914,11 +914,11 @@ function init() {
             let dailyData = {};
             (filteredSales || []).forEach(s => {
                 if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
-                dailyData[s.date].rev += s.total;
+                dailyData[s.date].rev += Number(s.total || 0);
             });
             (filteredExpenses || []).forEach(e => {
                 if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
-                dailyData[e.date].exp += e.amt;
+                dailyData[e.date].exp += Number(e.amt || 0);
             });
 
             const lbls = Object.keys(dailyData).sort();
@@ -956,6 +956,12 @@ function init() {
                     }
                 }
             });
+        }
+        function handleMonthYearChange() {
+            // ... your filtering logic for the specific month/year ...
+            
+            // AFTER filtering, you MUST call the chart function:
+            renderChart(filteredSales, filteredExpenses); 
         }
 
         // ==========================================
