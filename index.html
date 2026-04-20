@@ -712,93 +712,97 @@
 
     <script>
         // ==========================================
-    // 0. SAFE CLOUD INITIALIZATION
-    // ==========================================
-    const firebaseConfig = {
-        databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+        // 0. SAFE CLOUD INITIALIZATION
+        // ==========================================
+        const firebaseConfig = {
+            databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        
+        // Initialize only if not already started
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const rtdb = firebase.database();
+    
+        // ==========================================
+        // 1. GLOBAL STATE & CONFIG
+        // ==========================================
+        // These default values act as a safety net
+        let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
+        let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
+        let sessionUser = null;
+        let myChart = null;
+    
+       // ==========================================
+        // SAFE CLOUD LOGIC
+        // ==========================================
+        const save = () => {
+        localStorage.setItem('Powerups21_db', JSON.stringify(db));
+        localStorage.setItem('Powerups21_users', JSON.stringify(users));
+        // Record current time as "Last Seen"
+        localStorage.setItem('Powerups21_lastActive', Date.now()); 
+    
+        if (typeof rtdb !== 'undefined') {
+            rtdb.ref('businessData').set({ db, users })
+                .then(() => console.log("Cloud Sync: OK"))
+                .catch(err => console.error("Cloud Sync Error:", err));
+        }
     };
-    
-    // Initialize only if not already started
-    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-    const rtdb = firebase.database();
 
-    // ==========================================
-    // 1. GLOBAL STATE & CONFIG
-    // ==========================================
-    // These default values act as a safety net
-    let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
-    let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
-    let sessionUser = null;
-    let myChart = null;
-
-   // ==========================================
-// SAFE CLOUD LOGIC
-// ==========================================
-const save = () => {
-    // 1. Always save to local first as a safety backup
-    localStorage.setItem('Powerups21_db', JSON.stringify(db));
-    localStorage.setItem('Powerups21_users', JSON.stringify(users));
-
-    // 2. Only push to cloud if connected
-    if (typeof rtdb !== 'undefined') {
-        rtdb.ref('businessData').set({ db, users })
-            .then(() => console.log("Cloud Sync: OK"))
-            .catch(err => {
-                console.error("Cloud Sync Error:", err);
-                // If cloud fails, we still have local storage!
-            });
-    }
-};
-
-function init() {
-    console.log("Initializing system...");
-    
-    // Step A: Load from Local Storage IMMEDIATELY so buttons work right away
-    const sd = localStorage.getItem('Powerups21_db');
-    const su = localStorage.getItem('Powerups21_users');
-    if (sd) db = JSON.parse(sd);
-    if (su) users = JSON.parse(su);
-
-    // Step B: Connect to Cloud and update data
-    if (typeof rtdb !== 'undefined') {
-        rtdb.ref('businessData').once('value', (snap) => {
-            const val = snap.val();
-            if (val && val.db) {
-                // IMPORTANT: We use "|| []" to ensure every array exists.
-                // This prevents the "map is not a function" error that stops your app.
-                db = {
-                    inv: val.db.inv || [],
-                    sales: val.db.sales || [],
-                    exp: val.db.exp || [],
-                    archive: val.db.archive || [],
-                    count: val.db.count || { sku: 1, inv: 1 }
-                };
-                users = val.users || users;
-                console.log("✅ Cloud Synced. UI Refreshing...");
+        function init() {
+            const sd = localStorage.getItem('Powerups21_db');
+            const su = localStorage.getItem('Powerups21_users');
+            const ss = localStorage.getItem('Powerups21_session');
+            const lastActive = localStorage.getItem('Powerups21_lastActive');
+        
+            if (sd) db = JSON.parse(sd);
+            if (su) users = JSON.parse(su);
+        
+            // CHECK AUTO-LOGOUT TIMER (60000ms = 1 minute)
+            const now = Date.now();
+            if (ss && lastActive && (now - lastActive > 60000)) {
+                console.log("Session expired. Logging out...");
+                localStorage.removeItem('Powerups21_session');
+                sessionUser = null;
             } else {
-                console.log("🏠 Cloud empty. Uploading current local data...");
-                save();
+                sessionUser = ss;
             }
-            // Always call startApp after sync
-            startApp();
-        }).catch(err => {
-            console.error("Firebase Sync Error:", err);
-            startApp(); // Start anyway using local data
-        });
-    } else {
-        startApp();
-    }
-}
-
+        
+            if (typeof rtdb !== 'undefined') {
+                rtdb.ref('businessData').once('value', (snap) => {
+                    const val = snap.val();
+                    if (val && val.db) {
+                        db = {
+                            inv: val.db.inv || [],
+                            sales: val.db.sales || [],
+                            exp: val.db.exp || [],
+                            archive: val.db.archive || [],
+                            count: val.db.count || { sku: 1, inv: 1 }
+                        };
+                        users = val.users || users;
+                    }
+                    startApp();
+                }).catch(() => startApp());
+            } else {
+                startApp();
+            }
+        }
         function startApp() {
             migrateData();
             setDefaultDates();
+            
+            // If a session was restored from localStorage, hide the login screen
+            if (sessionUser) {
+                const userObj = users.find(u => u.u === sessionUser);
+                document.getElementById('authWrapper').style.display = 'none';
+                if (userObj) {
+                    document.getElementById('adminTab').style.display = userObj.role === 'admin' ? 'flex' : 'none';
+                    document.getElementById('setU').value = sessionUser;
+                }
+                sync();
+            }
+        
             if (typeof renderExpenses === 'function') renderExpenses();
             if (document.getElementById('fYear')) handleMonthYearChange();
-            // If logged in, sync UI
-            if (sessionUser) sync();
         }
-
         function migrateData() {
             let changed = false;
             db.inv.forEach(i => { if (!i.id) { i.id = "P" + pad(db.count.sku++, 6); changed = true; } });
@@ -1233,14 +1237,22 @@ function init() {
         // 6. AUTHENTICATION & SECURITY
         // ==========================================
         function handleLogin() {
-            const u = document.getElementById('userIn').value, p = document.getElementById('passIn').value;
+            const u = document.getElementById('userIn').value;
+            const p = document.getElementById('passIn').value;
             const user = users.find(x => x.u === u && x.p === p);
+        
             if (user && user.approved) {
                 sessionUser = user.u;
+                // ADD THIS: Save session to localStorage
+                localStorage.setItem('Powerups21_session', user.u); 
+        
                 document.getElementById('authWrapper').style.display = 'none';
                 document.getElementById('adminTab').style.display = user.role === 'admin' ? 'flex' : 'none';
-                document.getElementById('setU').value = user.u; sync();
-            } else document.getElementById('authError').style.display = 'block';
+                document.getElementById('setU').value = user.u; 
+                sync();
+            } else {
+                document.getElementById('authError').style.display = 'block';
+            }
         }
 
         function handleReg() {
@@ -1249,10 +1261,12 @@ function init() {
         }
 
         function handleLogout() {
-            if (confirm("Are you sure you want to log out? Any unsaved changes may be lost.")) {
-                location.reload();
-            }
+        if (confirm("Are you sure you want to log out?")) {
+            // ADD THIS: Clear the session
+            localStorage.removeItem('Powerups21_session'); 
+            location.reload();
         }
+    }
 
         function toggleAuth(r) {
             document.getElementById('loginBox').style.display = r ? 'none' : 'block';
@@ -1733,6 +1747,19 @@ function init() {
 
         document.getElementById('sID').onchange = (e) => document.getElementById('sName').value = e.target.value;
         document.getElementById('sName').onchange = (e) => document.getElementById('sID').value = e.target.value;
+        // Update the "Last Active" timestamp every 10 seconds while the tab is open
+        setInterval(() => {
+            if (sessionUser) {
+                localStorage.setItem('Powerups21_lastActive', Date.now());
+            }
+        }, 10000);
+        
+        // Also update it when the user closes the tab
+        window.onbeforeunload = () => {
+            if (sessionUser) {
+                localStorage.setItem('Powerups21_lastActive', Date.now());
+            }
+        };
 
         init();
     </script>
