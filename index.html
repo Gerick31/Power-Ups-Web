@@ -1575,11 +1575,24 @@ function init() {
                         formatNum(i.buy),
                         formatNum(i.sell)
                     ]);
-
+                
+                    // Calculate totals for Buy and Sell (Price * Stock)
+                    const totalBuy = (inv || []).reduce((sum, i) => sum + (Number(i.buy || 0) * Number(i.stock || 0)), 0);
+                    const totalSell = (inv || []).reduce((sum, i) => sum + (Number(i.sell || 0) * Number(i.stock || 0)), 0);
+                
                     if (!body.length) {
                         body.push(["No inventory data", "", "", "", ""]);
+                    } else {
+                        // Add footer row: SKU and Name are labels, Stock is empty, Costs are formatted
+                        body.push([
+                            "TOTAL VALUE", // SKU column
+                            "",            // Name column
+                            "",            // Stock column (Excluded)
+                            formatNum(totalBuy), 
+                            formatNum(totalSell)
+                        ]);
                     }
-
+                
                     renderTable(
                         "INVENTORY LIST",
                         ["SKU", "Name", "Stock", "Cost", "Price"],
@@ -1587,7 +1600,6 @@ function init() {
                         [3, 4]
                     );
                 }
-
                 // ---------- LOW STOCKS ----------
                 if (t === "all" || t === "low") {
                     const body = lowStocks.map(v => [
