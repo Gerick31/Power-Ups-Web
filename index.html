@@ -727,33 +727,26 @@
     </div> ```
 
     <script>
-        // ==========================================
-        // 0. SAFE CLOUD INITIALIZATION
-        // ==========================================
+        
         const firebaseConfig = {
             databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
-        // Initialize only if not already started
+        
         if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const rtdb = firebase.database();
 
-        // ==========================================
-        // 1. GLOBAL STATE & CONFIG
-        // ==========================================
-        // These default values act as a safety net
+        
         let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
         let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
         let sessionUser = null;
         let myChart = null;
 
-        // ==========================================
-        // SAFE CLOUD LOGIC
-        // ==========================================
+        
         const save = () => {
             localStorage.setItem('Powerups21_db', JSON.stringify(db));
             localStorage.setItem('Powerups21_users', JSON.stringify(users));
-            // Record current time as "Last Seen"
+            
             localStorage.setItem('Powerups21_lastActive', Date.now());
 
             if (typeof rtdb !== 'undefined') {
@@ -772,7 +765,6 @@
             if (sd) db = JSON.parse(sd);
             if (su) users = JSON.parse(su);
 
-            // CHECK AUTO-LOGOUT TIMER (60000ms = 1 minute)
             const now = Date.now();
             if (ss && lastActive && (now - lastActive > 60000)) {
                 console.log("Session expired. Logging out...");
@@ -805,7 +797,6 @@
             migrateData();
             setDefaultDates();
 
-            // If a session was restored from localStorage, hide the login screen
             if (sessionUser) {
                 const userObj = users.find(u => u.u === sessionUser);
                 document.getElementById('authWrapper').style.display = 'none';
@@ -827,14 +818,10 @@
         }
 
 
-        // ==========================================
-        // 3. DASHBOARD & ANALYTICS
-        // ==========================================
         function updateDash() {
             const startVal = document.getElementById('startDate').value;
             const endVal = document.getElementById('endDate').value;
 
-            // Unified Filter Logic: Shows "All-Time" if inputs are blank
             const filter = (arr) => arr.filter(x => {
                 if (!startVal || !endVal) return true;
                 return x.date >= startVal && x.date <= endVal;
@@ -843,7 +830,7 @@
             const fs = filter(db.sales), fe = filter(db.exp);
             const rev = fs.reduce((a, b) => a + b.total, 0);
             const cogs = fs.reduce((a, b) => {
-                // Find the item regardless of Capital Letters or extra spaces
+               
                 const itemInInv = db.inv.find(i => i.name.trim().toLowerCase() === b.name.trim().toLowerCase());
                 const currentBuyPrice = itemInInv ? itemInInv.buy : (b.cost || 0);
                 return a + (b.qty * currentBuyPrice);
@@ -851,7 +838,7 @@
             const op = fe.reduce((a, b) => a + b.amt, 0);
             const netProfit = rev - cogs - op;
 
-            // Smart Date Range Engine
+            
             let days = 1;
             if (startVal && endVal) {
                 const start = new Date(startVal);
@@ -863,11 +850,11 @@
                 days = Math.ceil(Math.abs(new Date() - firstSale) / (1000 * 60 * 60 * 24)) + 1;
             }
 
-            // Metrics
+            
             document.getElementById('dAvg').innerText = fCurrency(rev / days);
             document.getElementById('dCount').innerText = fs.length;
 
-            // Profitability
+            
             const marginEl = document.getElementById('dMargin');
             const mPct = rev > 0 ? ((netProfit / rev) * 100) : 0;
             marginEl.innerText = mPct.toFixed(2) + "%";
@@ -884,7 +871,7 @@
                 goalEl.style.color = "#e67e22";
             }
 
-            // Peak Analysis
+            
             let dailyTotals = {};
             let itemMap = {};
             fs.forEach(s => {
@@ -892,7 +879,7 @@
                 itemMap[s.name] = (itemMap[s.name] || 0) + s.qty;
             });
 
-            // Find this part near the bottom of updateDash
+            
             let peakDate = "None", peakAmt = 0;
             for (const d in dailyTotals) {
                 if (dailyTotals[d] > peakAmt) {
@@ -901,14 +888,13 @@
                 }
             }
 
-            // FIX: Ensure fDate is wrapping the peakDate
+            
             document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
 
             let bestItem = "None", maxQty = 0;
             for (const item in itemMap) { if (itemMap[item] > maxQty) { maxQty = itemMap[item]; bestItem = item; } }
             document.getElementById('dBest').innerText = bestItem !== "None" ? `${bestItem} (${maxQty})` : "None";
 
-            // Forecast & Financials
             let criticalItem = "None";
             let shortestRunway = Infinity;
             db.inv.forEach(item => {
@@ -946,21 +932,18 @@
 
             let dailyData = {};
 
-            // 1. Process Sales Data
             (filteredSales || []).forEach(s => {
                 if (!s.date) return;
                 if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
                 dailyData[s.date].rev += Number(s.total || 0);
             });
 
-            // 2. Process Expense Data
             (filteredExpenses || []).forEach(e => {
                 if (!e.date) return;
                 if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
                 dailyData[e.date].exp += Number(e.amt || 0);
             });
 
-            // 3. Sort dates to ensure the graph flows correctly (YYYY-MM-DD sorting)
             const lbls = Object.keys(dailyData).sort();
 
             if (lbls.length === 0) {
@@ -972,7 +955,7 @@
             window.myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    // FIX: Convert YYYY-MM-DD keys to MM/DD/YYYY for the display
+                    
                     labels: lbls.map(l => fDate(l)),
                     datasets: [
                         {
@@ -998,8 +981,8 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
-                            suggestedMin: 0, // Starts at 0, but allows negatives if they exist
-                            grace: 0,        // Removes the "extra padding" that causes the -200
+                            suggestedMin: 0, 
+                            grace: 0,        
                             ticks: {
                                 callback: (v) => '₱' + v.toLocaleString()
                             }
@@ -1020,24 +1003,19 @@
             });
         }
 
-        // Ensure your fDate helper is available
         function fDate(dateStr) {
             if (!dateStr || dateStr === "None") return "None";
             const [y, m, d] = dateStr.split('-');
             return `${m}/${d}/${y}`;
         }
         function handleMonthYearChange() {
-            // ... your filtering logic for the specific month/year ...
-
-            // AFTER filtering, you MUST call the chart function:
+            
             renderChart(filteredSales, filteredExpenses);
         }
 
-        // ==========================================
-        // 4. UI RENDERING & SYNC
-        // ==========================================
+        
         function sync() {
-            // Add this at the bottom of sync() to update the graph:
+            
             renderChart(db.sales, db.exp);
             save();
             updateDash();
@@ -1115,9 +1093,6 @@
             document.querySelectorAll(`#${tbody} tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
         }
 
-        // ==========================================
-        // 5. TRANSACTION HANDLERS (FORMS)
-        // ==========================================
         document.getElementById('saleForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editSaleIdx').value);
@@ -1143,7 +1118,7 @@
                     total: total,
                     cost: prod.buy
                 });
-                alert("Sale Recorded Successfully!"); // <--- New Sale Notification
+                alert("Sale Recorded Successfully!");
             } else {
                 const old = db.sales[idx];
                 const oldProd = db.inv.find(i => i.name === old.name);
@@ -1155,7 +1130,7 @@
                 }
                 prod.stock -= qty;
                 db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
-                alert("Sale Updated Successfully!"); // <--- Update Notification
+                alert("Sale Updated Successfully!");
             }
 
             e.target.reset();
@@ -1176,11 +1151,11 @@
             if (idx === -1) {
                 const newID = "P" + pad(db.count.sku++, 6);
                 db.inv.push({ id: newID, name, stock, buy, sell });
-                alert("New Product Added Successfully!"); // <--- Add Notification
+                alert("New Product Added Successfully!");
             } else {
                 const oldId = db.inv[idx].id;
                 db.inv[idx] = { id: oldId, name, stock, buy, sell };
-                alert("Inventory Updated Successfully!"); // <--- Update Notification
+                alert("Inventory Updated Successfully!");
             }
 
             e.target.reset();
@@ -1202,27 +1177,26 @@
 
             if (idx === -1) {
                 db.exp.push(data);
-                alert("Expense Recorded Successfully!"); // <--- Record Notification
+                alert("Expense Recorded Successfully!"); 
             } else {
                 db.exp[idx] = data;
-                alert("Expense Updated Successfully!"); // <--- Update Notification
+                alert("Expense Updated Successfully!"); 
             }
 
             e.target.reset();
             document.getElementById('editExpIdx').value = "-1";
-            document.getElementById('eBtn').innerText = "Record Expense"; // Added for consistency
+            document.getElementById('eBtn').innerText = "Record Expense"; 
             setDefaultDates();
             save(); sync(); renderExpenses();
         };
 
         function deleteExp(i) {
-            if (!confirm("Are you sure you want to delete this expense?")) return; // Added safety check
+            if (!confirm("Are you sure you want to delete this expense?")) return; 
             db.exp.splice(i, 1);
             save(); sync(); renderExpenses();
             alert("Expense deleted successfully!");
         }
 
-        // Universal Archive Function
         function archive(type, index) {
             const msg = `Are you sure you want to archive this ${type} record?`;
             if (!confirm(msg)) return;
@@ -1245,12 +1219,11 @@
             }
         }
 
-        // Restore Function
+        
         function restore(index) {
-            // 1. Ask for confirmation
+            
             if (confirm("Do you want to restore this record?")) {
 
-                // 2. If OK is clicked, move the item
                 const archived = db.archive.splice(index, 1)[0];
                 const type = archived.type.toLowerCase();
 
@@ -1258,16 +1231,12 @@
                 else if (type === 'inv') db.inv.push(archived.data);
                 else if (type === 'exp') db.exp.push(archived.data);
 
-                // 3. Update the UI and storage
                 sync();
 
-                // 4. Show the success notification
                 alert("Record restored successfully!");
             }
-            // If Cancel is clicked, nothing happens and the record stays in Archive
         }
 
-        // Permanent Delete
         function purge(index) {
             if (confirm("Permanently delete this record? This cannot be undone.")) {
                 db.archive.splice(index, 1);
@@ -1276,27 +1245,24 @@
             }
         }
         function editSale(i) {
-            // 1. Ask for confirmation
+           
             const proceed = confirm("Do you want to edit this sale?");
 
-            // 2. If the user clicks "Cancel", exit the function
             if (!proceed) return;
 
-            // 3. Otherwise, proceed with filling the form
             const s = db.sales[i];
             document.getElementById('editSaleIdx').value = i;
             document.getElementById('sDate').value = s.date;
             document.getElementById('sID').value = s.sku;
-            document.getElementById('sName').value = s.sku; // Triggers sync
+            document.getElementById('sName').value = s.sku; 
             document.getElementById('sQty').value = s.qty;
             document.getElementById('sBtn').innerText = "Update Sale";
 
-            // Switch to Sales section automatically
             document.querySelector('[data-sec="saleSec"]').click();
         }
 
         function editInv(i) {
-            // Confirmation check
+            
             if (!confirm("Do you want to edit this inventory item?")) return;
 
             const v = db.inv[i];
@@ -1307,7 +1273,6 @@
             document.getElementById('iSell').value = v.sell;
             document.getElementById('iBtn').innerText = "Update Product";
 
-            // Switch to Inventory section automatically
             document.querySelector('[data-sec="invSec"]').click();
         }
 
@@ -1322,32 +1287,26 @@
             document.getElementById('eBtn').innerText = "Update Expense";
 
             document.querySelector('[data-sec="expSec"]').click();
-            showNotification("Expense loaded for editing"); // <--- Notification
+            showNotification("Expense loaded for editing"); 
         }
 
         function saveSale() {
-            // ... your existing code to save the sale ...
-
-            // Add this at the bottom of the function:
+            
             alert("Sales Updated Successfully!");
         }
 
         function saveInv() {
-            // ... your existing code to save inventory ...
-
-            // Add this at the bottom of the function:
+            
             alert("Inventory Updated Successfully!");
         }
 
         function saveExp() {
-            // ... your existing code to save expenses ...
-
-            // Add this at the bottom of the function:
+            
             alert("Expense Recorded Successfully!");
         }
 
         function updateApprovalBadge() {
-            // Check if users exist and filter those who are NOT approved
+            
             if (typeof users !== 'undefined') {
                 const pendingCount = users.filter(u => !u.approved).length;
                 const badge = document.getElementById("notifCount");
@@ -1361,9 +1320,6 @@
             }
         }
 
-        // ==========================================
-        // 6. AUTHENTICATION & SECURITY
-        // ==========================================
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
@@ -1371,7 +1327,7 @@
 
             if (user && user.approved) {
                 sessionUser = user.u;
-                // ADD THIS: Save session to localStorage
+                
                 localStorage.setItem('Powerups21_session', user.u);
 
                 document.getElementById('authWrapper').style.display = 'none';
@@ -1390,7 +1346,7 @@
 
         function handleLogout() {
             if (confirm("Are you sure you want to log out?")) {
-                // ADD THIS: Clear the session
+                
                 localStorage.removeItem('Powerups21_session');
                 location.reload();
             }
@@ -1413,35 +1369,25 @@
         function handleEnter(event) { if (event.key === "Enter") handleLogin(); }
         function handleRegEnter(event) { if (event.key === "Enter") handleReg(); }
 
-        // ==========================================
-        // ADMIN USER MANAGEMENT LOGIC
-        // ==========================================
-
         function approve(username) {
             const user = users.find(u => u.u === username);
 
             if (!user) return alert("User not found!");
 
-            // 1. Ask FIRST
             if (confirm(`Are you sure you want to grant access for ${username}?`)) {
 
-                // 2. If OK, update the status
                 user.approved = true;
 
-                // 3. Save and Refresh
                 save();
                 sync();
 
-                // 4. Notify
                 alert(`Access granted for ${username}`);
             }
-            // If they click Cancel, nothing happens.
         }
 
         function delUser(index) {
             const user = users[index];
 
-            // Safety check: Don't let the admin remove themselves
             if (user.u === sessionUser) {
                 return alert("You cannot remove your own access.");
             }
@@ -1452,9 +1398,7 @@
                 sync();
             }
         }
-        /**
-     * Toggles the visibility of the password fields
-     */
+        
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
@@ -1466,22 +1410,17 @@
             }
         }
 
-        /**
-* Logic to update the account credentials
-*/
         function updateAccount() {
             const newU = document.getElementById('setU').value.trim();
             const oldP = document.getElementById('oldP').value;
             const newP = document.getElementById('setP').value;
             const msgBox = document.getElementById('settingsMsg');
 
-            // 1. Basic Validation
             if (!newU || !oldP) {
                 showSettingsMessage("Username and current password are required.", "var(--danger)", "#fff5f5");
                 return;
             }
 
-            // 2. Find the index of the logged-in user in the global 'users' array
             const userIdx = users.findIndex(u => u.u === sessionUser);
 
             if (userIdx === -1) {
@@ -1489,15 +1428,13 @@
                 return;
             }
 
-            // 3. Verify Current Password
             if (users[userIdx].p !== oldP) {
                 showSettingsMessage("Incorrect current password.", "var(--danger)", "#fff5f5");
                 return;
             }
 
-            // 4. Update data
             users[userIdx].u = newU;
-            sessionUser = newU; // Keep session synced with new username
+            sessionUser = newU; 
 
             if (newP.trim() !== "") {
                 users[userIdx].p = newP;
@@ -1506,18 +1443,13 @@
                 showSettingsMessage("Success! Username updated.", "var(--accent)", "#e6fffa");
             }
 
-            // 5. Commit to LocalStorage & Clear Inputs
-            save(); // Uses your existing save() function
+            save(); 
             document.getElementById('oldP').value = "";
             document.getElementById('setP').value = "";
 
-            // Optional: Refresh any admin tables showing users
             if (typeof sync === "function") sync();
         }
 
-        /**
-         * Helper to show the status message
-         */
         function showSettingsMessage(text, color, bg) {
             const msgBox = document.getElementById('settingsMsg');
             msgBox.textContent = text;
@@ -1527,9 +1459,6 @@
             msgBox.style.border = `1px solid ${color}`;
         }
 
-        /**
-         * Ensures the toggle button works specifically for these inputs
-         */
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
@@ -1541,13 +1470,8 @@
             }
         }
 
-        // ==========================================
-        // ==========================================
-        // 7. EXPORT ENGINES (DASHBOARD, CSV, PDF)
-        // ==========================================
-
         function getFilteredData() {
-            // Ensure we pick up the date values from your UI
+            
             const startVal = document.getElementById('startDate')?.value || "";
             const endVal = document.getElementById('endDate')?.value || "";
 
@@ -1556,7 +1480,6 @@
                 if (!startVal && !endVal) return arr;
                 return arr.filter(item => {
                     if (!item.date) return false;
-                    // Direct string comparison works for YYYY-MM-DD
                     if (startVal && item.date < startVal) return false;
                     if (endVal && item.date > endVal) return false;
                     return true;
@@ -1569,7 +1492,6 @@
                 sales: filterByDate(db.sales),
                 exp: filterByDate(db.exp),
                 inv: db.inv || [],
-                // Calculate Low Stocks dynamically during export
                 low: (db.inv || []).filter(item => Number(item.stock || 0) < 10)
             };
         }
@@ -1582,30 +1504,26 @@
                 let csv = "POWER UPS BUSINESS REPORT\n";
                 csv += `Range: ${startVal || 'All'} to ${endVal || 'All'}\n\n`;
 
-                // SALES SECTION
                 if (t === "all" || t === "sales") {
-                    csv += "--- SALES REPORT ---\nInvoice,Date,Item,Qty,Total\n";
+                    csv += "SALES REPORT\nInvoice,Date,Item,Qty,Total\n";
                     sales.forEach(s => csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`);
                     csv += "\n";
                 }
 
-                // EXPENSES SECTION
                 if (t === "all" || t === "exp") {
-                    csv += "--- EXPENSES REPORT ---\nDate,Description,Amount\n";
+                    csv += "EXPENSES REPORT\nDate,Description,Amount\n";
                     exp.forEach(e => csv += `${e.date},"${e.desc}",${e.amt}\n`);
                     csv += "\n";
                 }
 
-                // INVENTORY SECTION
                 if (t === "all" || t === "inv") {
-                    csv += "--- FULL INVENTORY ---\nSKU,Name,Stock,Cost,Price\n";
+                    csv += "FULL INVENTORY\nSKU,Name,Stock,Cost,Price\n";
                     inv.forEach(i => csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`);
                     csv += "\n";
                 }
 
-                // LOW STOCKS SECTION (Fixed: Now exports correctly)
                 if (t === "all" || t === "low") {
-                    csv += "--- LOW STOCK ALERT (Under 10 units) ---\nSKU,Product,Current Stock,Status\n";
+                    csv += "LOW STOCK ALERT (Under 10 units)\nSKU,Product,Current Stock,Status\n";
                     if (low.length > 0) {
                         low.forEach(item => csv += `${item.id},"${item.name}",${item.stock},REORDER NOW\n`);
                     } else {
@@ -1629,7 +1547,6 @@
         async function exportDashboardPDF() {
             console.log("PDF Export Triggered...");
 
-            // 1. Check if libraries are actually loaded in the browser memory
             const jspdfLib = window.jspdf ? window.jspdf.jsPDF : null;
             if (!jspdfLib) {
                 return alert("PDF Library (jsPDF) not detected. Please check your internet connection.");
@@ -1642,8 +1559,7 @@
             if (!dash) return alert("Dashboard element (#dashSec) not found on this page.");
 
             try {
-                // 2. Capture the element
-                // We use a slightly lower scale (1.5) to prevent browser crashes on older PCs
+                
                 const canvas = await html2canvas(dash, {
                     scale: 1.5,
                     useCORS: true,
@@ -1651,26 +1567,21 @@
                     backgroundColor: "#ffffff"
                 });
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.8); // Using JPEG reduces file size
+                const imgData = canvas.toDataURL('image/jpeg', 0.8); 
 
-                // 3. Initialize PDF
                 const pdf = new jspdfLib('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
                 const pdfHeight = pdf.internal.pageSize.getHeight();
 
-                // 4. Calculate dimensions to fit the page
-                const imgWidth = pdfWidth - 20; // 10mm margins
+                const imgWidth = pdfWidth - 20; 
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-                // 5. Add Header
                 pdf.setFontSize(14);
                 pdf.setTextColor(0, 128, 128);
                 pdf.text("POWER UPS BUSINESS SUITE - DASHBOARD", 10, 10);
 
-                // 6. Add Image
                 pdf.addImage(imgData, 'JPEG', 10, 20, imgWidth, imgHeight);
 
-                // 7. Save
                 pdf.save(`Dashboard_Report_${new Date().getTime()}.pdf`);
                 console.log("PDF Export Successful");
 
@@ -1689,7 +1600,6 @@
 
                 const t = (type || "all").toLowerCase().replace("sec", "");
 
-                // ---------- FORMAT NUMBER ----------
                 const formatNum = (v) => {
                     return Number(v || 0).toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
@@ -1699,10 +1609,8 @@
 
                 let startY = 20;
 
-                // ---------- LOW STOCK DATA ----------
                 const lowStocks = (db.inv || []).filter(v => Number(v.stock || 0) < 10);
 
-                // ---------- HEADER ----------
                 const addHeader = () => {
                     doc.setFontSize(18);
                     doc.setTextColor(0, 128, 128);
@@ -1711,7 +1619,6 @@
                     startY += 15;
                 };
 
-                // ---------- TABLE RENDER ----------
                 const renderTable = (title, head, body, moneyCols = []) => {
                     if (!body || body.length === 0) return;
 
@@ -1737,7 +1644,7 @@
                         headStyles: {
                             fillColor: [0, 128, 128],
                             textColor: 255,
-                            halign: 'center' // This centers the text horizontally
+                            halign: 'center' 
                         },
                         didDrawPage: () => {
                             const pageHeight = doc.internal.pageSize.height;
@@ -1751,14 +1658,12 @@
                     startY = doc.lastAutoTable.finalY + 10;
                 };
 
-                // ---------- START ----------
                 addHeader();
 
-                // ---------- SALES ----------
                 if (t === "all" || t === "sales") {
                     const body = (sales || []).map(s => [
                         s.invNo || "-",
-                        fDate(s.date), // <--- Use fDate here to convert YYYY-MM-DD to MM/DD/YYYY
+                        fDate(s.date), 
                         s.name || "-",
                         s.qty || 0,
                         formatNum(s.total)
@@ -1780,10 +1685,9 @@
                     );
                 }
 
-                // ---------- EXPENSES ----------
                 if (t === "all" || t === "exp") {
                     const body = (exp || []).map(e => [
-                        fDate(e.date), // <--- Use fDate here
+                        fDate(e.date), 
                         e.desc || "-",
                         formatNum(e.amt)
                     ]);
@@ -1804,7 +1708,6 @@
                     );
                 }
 
-                // ---------- INVENTORY ----------
                 if (t === "all" || t === "inv") {
                     const body = (inv || []).map(i => [
                         i.id || "-",
@@ -1814,18 +1717,16 @@
                         formatNum(i.sell)
                     ]);
 
-                    // Calculate totals for Buy and Sell (Price * Stock)
                     const totalBuy = (inv || []).reduce((sum, i) => sum + (Number(i.buy || 0) * Number(i.stock || 0)), 0);
                     const totalSell = (inv || []).reduce((sum, i) => sum + (Number(i.sell || 0) * Number(i.stock || 0)), 0);
 
                     if (!body.length) {
                         body.push(["No inventory data", "", "", "", ""]);
                     } else {
-                        // Add footer row: SKU and Name are labels, Stock is empty, Costs are formatted
                         body.push([
-                            "TOTAL VALUE", // SKU column
-                            "",            // Name column
-                            "",            // Stock column (Excluded)
+                            "TOTAL VALUE", 
+                            "",            
+                            "",            
                             formatNum(totalBuy),
                             formatNum(totalSell)
                         ]);
@@ -1838,7 +1739,7 @@
                         [3, 4]
                     );
                 }
-                // ---------- LOW STOCKS ----------
+                
                 if (t === "all" || t === "low") {
                     const body = lowStocks.map(v => [
                         v.id || "-",
@@ -1859,7 +1760,6 @@
                     );
                 }
 
-                // ---------- SAVE ----------
                 doc.save(`PowerUps_${t}_Report.pdf`);
 
             } catch (err) {
@@ -1873,9 +1773,7 @@
         console.log("startVal:", startVal, "endVal:", endVal);
         console.log("RAW db.exp:", db.exp);
         console.log("FILTERED exp:", exp);
-        // ==========================================
-        // 8. NAVIGATION & DOM EVENTS
-        // ==========================================
+        
         document.querySelectorAll('.nav-item').forEach(n => n.onclick = () => {
             document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
             n.classList.add('active');
@@ -1886,7 +1784,7 @@
 
         document.getElementById('sID').onchange = (e) => document.getElementById('sName').value = e.target.value;
         document.getElementById('sName').onchange = (e) => document.getElementById('sID').value = e.target.value;
-        // Update the "Last Active" timestamp every 10 seconds while the tab is open
+       
         setInterval(() => {
             if (sessionUser) {
                 localStorage.setItem('Powerups21_lastActive', Date.now());
@@ -1894,7 +1792,6 @@
         }, 10000);
 
 
-        // Also update it when the user closes the tab
         window.onbeforeunload = () => {
             if (sessionUser) {
                 localStorage.setItem('Powerups21_lastActive', Date.now());
