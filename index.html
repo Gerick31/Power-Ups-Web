@@ -1027,7 +1027,22 @@
             r('invTableBody', db.inv.map((v, i) => `<tr><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>${fCurrency(v.buy)}</td><td>${fCurrency(v.sell)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editInv(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('inv',${i})">Del</button></td></tr>`).join(''));
             renderExpenses();
             r('delTableBody', db.archive.map((a, i) => `<tr><td>${a.type}</td><td>${a.data.id || a.data.invNo}</td><td>${a.data.name || a.data.desc}</td><td>${a.deletedBy}</td><td><button class="btn-sm" style="background:var(--accent)" onclick="restore(${i})">Restore</button><button class="btn-sm" style="background:var(--danger)" onclick="purge(${i})">Purge</button></td></tr>`).join(''));
-            r('adminTableBody', users.map((u, i) => `<tr><td>${u.u}</td><td>${u.approved ? 'Active' : 'Pending'}</td><td>${!u.approved ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>` : ''} ${u.role !== 'admin' ? `<button class="btn-sm" style="background:var(--danger)" onclick="delUser(${i})">Remove Access</button>` : ''}</td></tr>`).join(''));
+            r('adminTableBody', users.map((u, i) => {
+                
+                const actionsHtml = !u.approved
+                    ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>
+                       <button class="btn-sm" style="background:var(--danger)" onclick="decline('${u.u}')">Decline</button>`
+                    : u.u !== sessionUser
+                    ? `<button class="btn-sm" style="background:var(--danger)" onclick="removeAccess('${u.u}')">Remove Access</button>`
+                    : `<em>(You)</em>`;
+
+                
+                return `<tr>
+                <td>${u.u}</td>
+                <td>${u.approved ? 'Active' : 'Pending'}</td>
+                <td>${actionsHtml}</td>
+            </tr>`;
+                    }).join(''));
 
             r('lowTableBody', db.inv.filter(v => v.stock < 10).map(v => `
                             <tr style="color:black;">
@@ -1371,31 +1386,40 @@
 
         function approve(username) {
             const user = users.find(u => u.u === username);
-
             if (!user) return alert("User not found!");
 
-            if (confirm(`Are you sure you want to grant access for ${username}?`)) {
-
+            if (confirm("Are you sure you want to grant access for " + username + "?")) {
                 user.approved = true;
-
                 save();
                 sync();
-
-                alert(`Access granted for ${username}`);
+                alert("Access granted for " + username);
             }
         }
 
-        function delUser(index) {
-            const user = users[index];
+        function decline(username) {
+            const index = users.findIndex(u => u.u === username);
+            if (index === -1) return alert("User not found!");
 
-            if (user.u === sessionUser) {
-                return alert("You cannot remove your own access.");
-            }
-
-            if (confirm(`Are you sure you want to remove access for ${user.u}?`)) {
+            if (confirm("Are you sure you want to decline and delete the request from " + username + "?")) {
                 users.splice(index, 1);
                 save();
                 sync();
+                alert("Request declined and removed.");
+            }
+        }
+
+        function removeAccess(username) {
+            const index = users.findIndex(u => u.u === username);
+            const user = users[index];
+
+            if (!user) return alert("User not found!");
+            if (user.u === sessionUser) return alert("You cannot remove your own access.");
+
+            if (confirm("Are you sure you want to permanently remove access for " + username + "?")) {
+                users.splice(index, 1);
+                save();
+                sync();
+                alert("Access for " + username + " has been revoked.");
             }
         }
         
