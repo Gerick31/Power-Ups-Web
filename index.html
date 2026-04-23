@@ -557,7 +557,7 @@
                 <form id="saleForm">
                     <input type="hidden" id="editSaleIdx" value="-1">
                     <div class="form-row">
-                        <input type="date" id="sDate" required>
+                        <input type="date" id="saleDate" required>
                         <select id="sName" required><option value="">Product Name</option></select>
                         <select id="sID" required><option value="">Product ID</option></select>
                         <input type="number" id="sQty" placeholder="Qty" min="1" required>
@@ -644,7 +644,7 @@
                 <form id="expForm">
                     <input type="hidden" id="editExpIdx" value="-1">
                     <div class="form-row">
-                        <input type="date" id="eDate" required>
+                        <input type="date" id="expDate" required>
                         <input type="text" id="eDesc" placeholder="Description" required>
                         <input type="number" id="eAmt" step="0.01" placeholder="Amount" required>
                     </div>
@@ -1154,11 +1154,27 @@
         }
 
         function setDefaultDates() {
-            const now = new Date().toISOString().split('T')[0];
-            ['sDate', 'eDate'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = now;
-            });
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+
+            const firstDay = `${year}-${month}-01`;
+            const today = `${year}-${month}-${day}`;
+
+            // 1. DASHBOARD: Sets April 1st to April 24th
+            const dashStart = document.getElementById('sDate');
+            const dashEnd = document.getElementById('eDate');
+            if (dashStart && !dashStart.value) dashStart.value = firstDay;
+            if (dashEnd && !dashEnd.value) dashEnd.value = today;
+
+            // 2. ENTRY FORMS: Sets April 24th (Today)
+            // Make sure these IDs match what you changed in Step 1
+            const saleInp = document.getElementById('saleDate');
+            const expInp = document.getElementById('expDate');
+
+            if (saleInp) saleInp.value = today;
+            if (expInp) expInp.value = today;
         }
 
         function updateDropdowns() {
@@ -1212,7 +1228,7 @@
                     return alert("Insufficient Stock!");
                 }
                 prod.stock -= qty;
-                db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
+                db.sales[idx] = { ...old, date: document.getElementById('saleDate').value, sku, name: prod.name, qty, total };
                 alert("Sale Updated Successfully!"); // <--- Update Notification
             }
 
@@ -1253,7 +1269,7 @@
             e.preventDefault();
             const idx = parseInt(document.getElementById('editExpIdx').value);
             const data = {
-                date: document.getElementById('eDate').value,
+                date: document.getElementById('expDate').value,
                 desc: document.getElementById('eDesc').value,
                 amt: parseFloat(document.getElementById('eAmt').value)
             };
@@ -1343,7 +1359,10 @@
             // 3. Otherwise, proceed with filling the form
             const s = db.sales[i];
             document.getElementById('editSaleIdx').value = i;
-            document.getElementById('sDate').value = s.date;
+
+            // UPDATED: Changed 'sDate' to 'saleDate' to match your new form ID
+            document.getElementById('saleDate').value = s.date;
+
             document.getElementById('sID').value = s.sku;
             document.getElementById('sName').value = s.sku; // Triggers sync
             document.getElementById('sQty').value = s.qty;
@@ -1374,7 +1393,7 @@
 
             const e = db.exp[i];
             document.getElementById('editExpIdx').value = i;
-            document.getElementById('eDate').value = e.date;
+            document.getElementById('expDate').value = e.date;
             document.getElementById('eDesc').value = e.desc;
             document.getElementById('eAmt').value = e.amt;
             document.getElementById('eBtn').innerText = "Update Expense";
