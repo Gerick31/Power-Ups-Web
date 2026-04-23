@@ -727,26 +727,33 @@
     </div> ```
 
     <script>
-        
+        // ==========================================
+        // 0. SAFE CLOUD INITIALIZATION
+        // ==========================================
         const firebaseConfig = {
             databaseURL: "https://powerups-business-suite-fee3f-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
-        
+        // Initialize only if not already started
         if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const rtdb = firebase.database();
 
-        
+        // ==========================================
+        // 1. GLOBAL STATE & CONFIG
+        // ==========================================
+        // These default values act as a safety net
         let db = { inv: [], sales: [], exp: [], archive: [], count: { sku: 1, inv: 1 } };
         let users = [{ u: "admin", p: "admin123", approved: true, role: "admin" }];
         let sessionUser = null;
         let myChart = null;
 
-        
+        // ==========================================
+        // SAFE CLOUD LOGIC
+        // ==========================================
         const save = () => {
             localStorage.setItem('Powerups21_db', JSON.stringify(db));
             localStorage.setItem('Powerups21_users', JSON.stringify(users));
-            
+            // Record current time as "Last Seen"
             localStorage.setItem('Powerups21_lastActive', Date.now());
 
             if (typeof rtdb !== 'undefined') {
@@ -765,6 +772,7 @@
             if (sd) db = JSON.parse(sd);
             if (su) users = JSON.parse(su);
 
+            // CHECK AUTO-LOGOUT TIMER (60000ms = 1 minute)
             const now = Date.now();
             if (ss && lastActive && (now - lastActive > 60000)) {
                 console.log("Session expired. Logging out...");
@@ -797,6 +805,7 @@
             migrateData();
             setDefaultDates();
 
+            // If a session was restored from localStorage, hide the login screen
             if (sessionUser) {
                 const userObj = users.find(u => u.u === sessionUser);
                 document.getElementById('authWrapper').style.display = 'none';
@@ -818,10 +827,14 @@
         }
 
 
+        // ==========================================
+        // 3. DASHBOARD & ANALYTICS
+        // ==========================================
         function updateDash() {
             const startVal = document.getElementById('startDate').value;
             const endVal = document.getElementById('endDate').value;
 
+            // Unified Filter Logic: Shows "All-Time" if inputs are blank
             const filter = (arr) => arr.filter(x => {
                 if (!startVal || !endVal) return true;
                 return x.date >= startVal && x.date <= endVal;
@@ -830,7 +843,7 @@
             const fs = filter(db.sales), fe = filter(db.exp);
             const rev = fs.reduce((a, b) => a + b.total, 0);
             const cogs = fs.reduce((a, b) => {
-               
+                // Find the item regardless of Capital Letters or extra spaces
                 const itemInInv = db.inv.find(i => i.name.trim().toLowerCase() === b.name.trim().toLowerCase());
                 const currentBuyPrice = itemInInv ? itemInInv.buy : (b.cost || 0);
                 return a + (b.qty * currentBuyPrice);
@@ -838,7 +851,7 @@
             const op = fe.reduce((a, b) => a + b.amt, 0);
             const netProfit = rev - cogs - op;
 
-            
+            // Smart Date Range Engine
             let days = 1;
             if (startVal && endVal) {
                 const start = new Date(startVal);
@@ -850,11 +863,11 @@
                 days = Math.ceil(Math.abs(new Date() - firstSale) / (1000 * 60 * 60 * 24)) + 1;
             }
 
-            
+            // Metrics
             document.getElementById('dAvg').innerText = fCurrency(rev / days);
             document.getElementById('dCount').innerText = fs.length;
 
-            
+            // Profitability
             const marginEl = document.getElementById('dMargin');
             const mPct = rev > 0 ? ((netProfit / rev) * 100) : 0;
             marginEl.innerText = mPct.toFixed(2) + "%";
@@ -871,7 +884,7 @@
                 goalEl.style.color = "#e67e22";
             }
 
-            
+            // Peak Analysis
             let dailyTotals = {};
             let itemMap = {};
             fs.forEach(s => {
@@ -879,7 +892,7 @@
                 itemMap[s.name] = (itemMap[s.name] || 0) + s.qty;
             });
 
-            
+            // Find this part near the bottom of updateDash
             let peakDate = "None", peakAmt = 0;
             for (const d in dailyTotals) {
                 if (dailyTotals[d] > peakAmt) {
@@ -888,13 +901,14 @@
                 }
             }
 
-            
+            // FIX: Ensure fDate is wrapping the peakDate
             document.getElementById('dPeak').innerText = peakDate !== "None" ? fDate(peakDate) : "None";
 
             let bestItem = "None", maxQty = 0;
             for (const item in itemMap) { if (itemMap[item] > maxQty) { maxQty = itemMap[item]; bestItem = item; } }
             document.getElementById('dBest').innerText = bestItem !== "None" ? `${bestItem} (${maxQty})` : "None";
 
+            // Forecast & Financials
             let criticalItem = "None";
             let shortestRunway = Infinity;
             db.inv.forEach(item => {
@@ -932,18 +946,21 @@
 
             let dailyData = {};
 
+            // 1. Process Sales Data
             (filteredSales || []).forEach(s => {
                 if (!s.date) return;
                 if (!dailyData[s.date]) dailyData[s.date] = { rev: 0, exp: 0 };
                 dailyData[s.date].rev += Number(s.total || 0);
             });
 
+            // 2. Process Expense Data
             (filteredExpenses || []).forEach(e => {
                 if (!e.date) return;
                 if (!dailyData[e.date]) dailyData[e.date] = { rev: 0, exp: 0 };
                 dailyData[e.date].exp += Number(e.amt || 0);
             });
 
+            // 3. Sort dates to ensure the graph flows correctly (YYYY-MM-DD sorting)
             const lbls = Object.keys(dailyData).sort();
 
             if (lbls.length === 0) {
@@ -955,7 +972,7 @@
             window.myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    
+                    // FIX: Convert YYYY-MM-DD keys to MM/DD/YYYY for the display
                     labels: lbls.map(l => fDate(l)),
                     datasets: [
                         {
@@ -981,8 +998,8 @@
                     maintainAspectRatio: false,
                     scales: {
                         y: {
-                            suggestedMin: 0, 
-                            grace: 0,        
+                            suggestedMin: 0, // Starts at 0, but allows negatives if they exist
+                            grace: 0,        // Removes the "extra padding" that causes the -200
                             ticks: {
                                 callback: (v) => '₱' + v.toLocaleString()
                             }
@@ -1003,19 +1020,24 @@
             });
         }
 
+        // Ensure your fDate helper is available
         function fDate(dateStr) {
             if (!dateStr || dateStr === "None") return "None";
             const [y, m, d] = dateStr.split('-');
             return `${m}/${d}/${y}`;
         }
         function handleMonthYearChange() {
-            
+            // ... your filtering logic for the specific month/year ...
+
+            // AFTER filtering, you MUST call the chart function:
             renderChart(filteredSales, filteredExpenses);
         }
 
-        
+        // ==========================================
+        // 4. UI RENDERING & SYNC
+        // ==========================================
         function sync() {
-            
+            // Add this at the bottom of sync() to update the graph:
             renderChart(db.sales, db.exp);
             save();
             updateDash();
@@ -1023,21 +1045,22 @@
             updateDropdowns();
             const r = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
-            r('saleTableBody', db.sales.map((s, i) => `<tr><td>${s.invNo}</td><td>${fDate(s.date)}</td><td>${s.name}</td><td>${s.qty}</td><td>${fCurrency(s.total)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editSale(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('sales',${i})">Del</button></td></tr>`).join(''));
-            r('invTableBody', db.inv.map((v, i) => `<tr><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>${fCurrency(v.buy)}</td><td>${fCurrency(v.sell)}</td><td><button class="btn-sm" style="background:var(--warning)" onclick="editInv(${i})">Edit</button><button class="btn-sm" style="background:var(--danger)" onclick="archive('inv',${i})">Del</button></td></tr>`).join(''));
+            r('saleTableBody', db.sales.map((s, i) => `<tr><td>${s.invNo}</td><td>${fDate(s.date)}</td><td>${s.name}</td><td>${s.qty}</td><td>${fCurrency(s.total)}</td><td><button class="btn-sm" style="background:transparent" onclick="editSale(${i})"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ff9500"><path d="M120-120v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm584-528 56-56-56-56-56 56 56 56Z"/></svg></button><button class="btn-sm" style="background:transparent" onclick="archive('sales',${i})"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#EA3323"><path d="m400-325 80-80 80 80 51-51-80-80 80-80-51-51-80 80-80-80-51 51 80 80-80 80 51 51Zm-88 181q-30 0-51-21t-21-51v-480h-48v-72h192v-48h192v48h192v72h-48v480q0 30-21 51t-51 21H312Z"/></svg></button></td></tr>`).join(''));
+
+            r('invTableBody', db.inv.map((v, i) => `<tr><td>${v.id}</td><td>${v.name}</td><td>${v.stock}</td><td>${fCurrency(v.buy)}</td><td>${fCurrency(v.sell)}</td><td><button class="btn-sm" style="background:transparent" onclick="editInv(${i})"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ff9500"><path d="M120-120v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm584-528 56-56-56-56-56 56 56 56Z"/></svg></button><button class="btn-sm" style="background:transparent" onclick="archive('inv',${i})"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#EA3323"><path d="m400-325 80-80 80 80 51-51-80-80 80-80-51-51-80 80-80-80-51 51 80 80-80 80 51 51Zm-88 181q-30 0-51-21t-21-51v-480h-48v-72h192v-48h192v48h192v72h-48v480q0 30-21 51t-51 21H312Z"/></svg></button></td></tr>`).join(''));
             renderExpenses();
-            r('delTableBody', db.archive.map((a, i) => `<tr><td>${a.type}</td><td>${a.data.id || a.data.invNo}</td><td>${a.data.name || a.data.desc}</td><td>${a.deletedBy}</td><td><button class="btn-sm" style="background:var(--accent)" onclick="restore(${i})">Restore</button><button class="btn-sm" style="background:var(--danger)" onclick="purge(${i})">Purge</button></td></tr>`).join(''));
+            r('delTableBody', db.archive.map((a, i) => `<tr><td>${a.type}</td><td>${a.data.id || a.data.invNo}</td><td>${a.data.name || a.data.desc}</td><td>${a.deletedBy}</td><td><button class="btn-sm" style="background:transparent" onclick="restore(${i})"><svg xmlns="http://www.w3.org/2000/svg" height="21px" viewBox="0 -960 960 960" width="21px" fill="#10c656"><path d="M480-564 336-420l51 51 57-57v150h72v-150l57 57 51-51-144-144ZM216-144q-29.7 0-50.85-21.15Q144-186.3 144-216v-474q0-14 5.25-27T165-741l54-54q11-11 23.94-16 12.94-5 27.06-5h420q14.12 0 27.06 5T741-795l54 54q10.5 11 15.75 24t5.25 27v474q0 29.7-21.15 50.85Q773.7-144 744-144H216Zm6-552h516l-48-48H270l-48 48Z"/></svg></button><button class="btn-sm" style="background:transparent" onclick="purge(${i})"><svg xmlns="http://www.w3.org/2000/svg" height="21px" viewBox="0 -960 960 960" width="21px" fill="#EA3323"><path d="m400-325 80-80 80 80 51-51-80-80 80-80-51-51-80 80-80-80-51 51 80 80-80 80 51 51Zm-88 181q-30 0-51-21t-21-51v-480h-48v-72h192v-48h192v48h192v72h-48v480q0 30-21 51t-51 21H312Z"/></svg></button></td></tr>`).join(''));
             r('adminTableBody', users.map((u, i) => {
-                
+                // 1. Determine which buttons to show
                 const actionsHtml = !u.approved
-                    ? `<button class="btn-sm" style="background:var(--accent)" onclick="approve('${u.u}')">Approve</button>
-                       <button class="btn-sm" style="background:var(--danger)" onclick="decline('${u.u}')">Decline</button>`
+                    ? `<button class="btn-sm" style="background:transparent" onclick="approve('${u.u}')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#10c656"><path d="M312-175v-353h43q15 0 30.5 2.5T415-518l236 85q24 9 40 28.5t16 45.5q0 10-7.5 16.5T681-336h-91q-11 0-21.5-1t-21.5-5l-51-18-16 45 48 17q15 5 30.5 7.5T590-288h261q27 0 44 21.5t17 50.5L601-96l-289-79ZM96-96v-432h144v432H96Zm480-433L441-664l50-51 85 85 187-187 51 51-238 237Z"/></svg></button>
+                       <button class="btn-sm" style="background:transparent" onclick="decline('${u.u}')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ff0000"><path d="M768-90 666-192H96v-92q0-31 10-48.5t37-33.5q56-32 116.5-49T384-432q11 0 23 1t23 2l-52-51q-54 0-95.5-41.5T241-617L90-768l51-51 678 678-51 51Zm-36-342v-108H624v-72h108v-108h72v108h108v72H804v108h-72ZM509-553 313-749q14-8 33-13.5t38-5.5q60 0 102 42t42 102q0 19-5.5 38.5T509-553Z"/></svg></button>`
                     : u.u !== sessionUser
-                    ? `<button class="btn-sm" style="background:var(--danger)" onclick="removeAccess('${u.u}')">Remove Access</button>`
+                    ? `<button class="btn-sm" style="background:transparent" onclick="removeAccess('${u.u}')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ff0000"><path d="M576-529 441-664l50-51 85 85 187-187 51 51-238 237Zm278 421-51 51L56-803l51-51 747 746Zm-542-67v-353h43q15 0 30.5 2.5T415-518l45 16 166 166h-36q-11 0-21.5-1t-21.5-5l-51-18-16 45 48 17q15 5 30.5 7.5T590-288h84l118 118-191 74-289-79ZM96-96v-432h144v432H96Z"/></svg></button>`
                     : `<em>(You)</em>`;
 
-                
-                return `<tr>
+                        // 2. Return the table row
+                        return `<tr>
                 <td>${u.u}</td>
                 <td>${u.approved ? 'Active' : 'Pending'}</td>
                 <td>${actionsHtml}</td>
@@ -1108,6 +1131,9 @@
             document.querySelectorAll(`#${tbody} tr`).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
         }
 
+        // ==========================================
+        // 5. TRANSACTION HANDLERS (FORMS)
+        // ==========================================
         document.getElementById('saleForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editSaleIdx').value);
@@ -1133,7 +1159,7 @@
                     total: total,
                     cost: prod.buy
                 });
-                alert("Sale Recorded Successfully!");
+                alert("Sale Recorded Successfully!"); // <--- New Sale Notification
             } else {
                 const old = db.sales[idx];
                 const oldProd = db.inv.find(i => i.name === old.name);
@@ -1145,7 +1171,7 @@
                 }
                 prod.stock -= qty;
                 db.sales[idx] = { ...old, date: document.getElementById('sDate').value, sku, name: prod.name, qty, total };
-                alert("Sale Updated Successfully!");
+                alert("Sale Updated Successfully!"); // <--- Update Notification
             }
 
             e.target.reset();
@@ -1166,11 +1192,11 @@
             if (idx === -1) {
                 const newID = "P" + pad(db.count.sku++, 6);
                 db.inv.push({ id: newID, name, stock, buy, sell });
-                alert("New Product Added Successfully!");
+                alert("New Product Added Successfully!"); // <--- Add Notification
             } else {
                 const oldId = db.inv[idx].id;
                 db.inv[idx] = { id: oldId, name, stock, buy, sell };
-                alert("Inventory Updated Successfully!");
+                alert("Inventory Updated Successfully!"); // <--- Update Notification
             }
 
             e.target.reset();
@@ -1192,26 +1218,27 @@
 
             if (idx === -1) {
                 db.exp.push(data);
-                alert("Expense Recorded Successfully!"); 
+                alert("Expense Recorded Successfully!"); // <--- Record Notification
             } else {
                 db.exp[idx] = data;
-                alert("Expense Updated Successfully!"); 
+                alert("Expense Updated Successfully!"); // <--- Update Notification
             }
 
             e.target.reset();
             document.getElementById('editExpIdx').value = "-1";
-            document.getElementById('eBtn').innerText = "Record Expense"; 
+            document.getElementById('eBtn').innerText = "Record Expense"; // Added for consistency
             setDefaultDates();
             save(); sync(); renderExpenses();
         };
 
         function deleteExp(i) {
-            if (!confirm("Are you sure you want to delete this expense?")) return; 
+            if (!confirm("Are you sure you want to delete this expense?")) return; // Added safety check
             db.exp.splice(i, 1);
             save(); sync(); renderExpenses();
             alert("Expense deleted successfully!");
         }
 
+        // Universal Archive Function
         function archive(type, index) {
             const msg = `Are you sure you want to archive this ${type} record?`;
             if (!confirm(msg)) return;
@@ -1234,11 +1261,12 @@
             }
         }
 
-        
+        // Restore Function
         function restore(index) {
-            
+            // 1. Ask for confirmation
             if (confirm("Do you want to restore this record?")) {
 
+                // 2. If OK is clicked, move the item
                 const archived = db.archive.splice(index, 1)[0];
                 const type = archived.type.toLowerCase();
 
@@ -1246,12 +1274,16 @@
                 else if (type === 'inv') db.inv.push(archived.data);
                 else if (type === 'exp') db.exp.push(archived.data);
 
+                // 3. Update the UI and storage
                 sync();
 
+                // 4. Show the success notification
                 alert("Record restored successfully!");
             }
+            // If Cancel is clicked, nothing happens and the record stays in Archive
         }
 
+        // Permanent Delete
         function purge(index) {
             if (confirm("Permanently delete this record? This cannot be undone.")) {
                 db.archive.splice(index, 1);
@@ -1260,24 +1292,27 @@
             }
         }
         function editSale(i) {
-           
+            // 1. Ask for confirmation
             const proceed = confirm("Do you want to edit this sale?");
 
+            // 2. If the user clicks "Cancel", exit the function
             if (!proceed) return;
 
+            // 3. Otherwise, proceed with filling the form
             const s = db.sales[i];
             document.getElementById('editSaleIdx').value = i;
             document.getElementById('sDate').value = s.date;
             document.getElementById('sID').value = s.sku;
-            document.getElementById('sName').value = s.sku; 
+            document.getElementById('sName').value = s.sku; // Triggers sync
             document.getElementById('sQty').value = s.qty;
             document.getElementById('sBtn').innerText = "Update Sale";
 
+            // Switch to Sales section automatically
             document.querySelector('[data-sec="saleSec"]').click();
         }
 
         function editInv(i) {
-            
+            // Confirmation check
             if (!confirm("Do you want to edit this inventory item?")) return;
 
             const v = db.inv[i];
@@ -1288,6 +1323,7 @@
             document.getElementById('iSell').value = v.sell;
             document.getElementById('iBtn').innerText = "Update Product";
 
+            // Switch to Inventory section automatically
             document.querySelector('[data-sec="invSec"]').click();
         }
 
@@ -1302,26 +1338,32 @@
             document.getElementById('eBtn').innerText = "Update Expense";
 
             document.querySelector('[data-sec="expSec"]').click();
-            showNotification("Expense loaded for editing"); 
+            showNotification("Expense loaded for editing"); // <--- Notification
         }
 
         function saveSale() {
-            
+            // ... your existing code to save the sale ...
+
+            // Add this at the bottom of the function:
             alert("Sales Updated Successfully!");
         }
 
         function saveInv() {
-            
+            // ... your existing code to save inventory ...
+
+            // Add this at the bottom of the function:
             alert("Inventory Updated Successfully!");
         }
 
         function saveExp() {
-            
+            // ... your existing code to save expenses ...
+
+            // Add this at the bottom of the function:
             alert("Expense Recorded Successfully!");
         }
 
         function updateApprovalBadge() {
-            
+            // Check if users exist and filter those who are NOT approved
             if (typeof users !== 'undefined') {
                 const pendingCount = users.filter(u => !u.approved).length;
                 const badge = document.getElementById("notifCount");
@@ -1335,6 +1377,9 @@
             }
         }
 
+        // ==========================================
+        // 6. AUTHENTICATION & SECURITY
+        // ==========================================
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
@@ -1342,7 +1387,7 @@
 
             if (user && user.approved) {
                 sessionUser = user.u;
-                
+                // ADD THIS: Save session to localStorage
                 localStorage.setItem('Powerups21_session', user.u);
 
                 document.getElementById('authWrapper').style.display = 'none';
@@ -1361,7 +1406,7 @@
 
         function handleLogout() {
             if (confirm("Are you sure you want to log out?")) {
-                
+                // ADD THIS: Clear the session
                 localStorage.removeItem('Powerups21_session');
                 location.reload();
             }
@@ -1384,30 +1429,35 @@
         function handleEnter(event) { if (event.key === "Enter") handleLogin(); }
         function handleRegEnter(event) { if (event.key === "Enter") handleReg(); }
 
+        // ==========================================
+        // ADMIN USER MANAGEMENT LOGIC
+        // ==========================================
+
+       // 1. APPROVE: Sets status to true
         function approve(username) {
             const user = users.find(u => u.u === username);
             if (!user) return alert("User not found!");
 
-            if (confirm("Are you sure you want to grant access for " + username + "?")) {
+            if (confirm(`Are you sure you want to grant access for ${username}?`)) {
                 user.approved = true;
-                save();
-                sync();
-                alert("Access granted for " + username);
+                save(); sync();
+                alert(`Access granted for ${username}`);
             }
         }
 
+        // 2. DECLINE: Deletes the pending request completely
         function decline(username) {
             const index = users.findIndex(u => u.u === username);
             if (index === -1) return alert("User not found!");
 
-            if (confirm("Are you sure you want to decline and delete the request from " + username + "?")) {
+            if (confirm(`Are you sure you want to decline and delete the request from ${username}?`)) {
                 users.splice(index, 1);
-                save();
-                sync();
+                save(); sync();
                 alert("Request declined and removed.");
             }
         }
 
+        // 3. REMOVE ACCESS: For already approved users
         function removeAccess(username) {
             const index = users.findIndex(u => u.u === username);
             const user = users[index];
@@ -1415,14 +1465,15 @@
             if (!user) return alert("User not found!");
             if (user.u === sessionUser) return alert("You cannot remove your own access.");
 
-            if (confirm("Are you sure you want to permanently remove access for " + username + "?")) {
-                users.splice(index, 1);
-                save();
-                sync();
-                alert("Access for " + username + " has been revoked.");
+            if (confirm(`Are you sure you want to permanently remove access for ${username}?`)) {
+                users.splice(index, 1); // Or use user.approved = false if you just want to disable them
+                save(); sync();
+                alert(`Access for ${username} has been revoked.`);
             }
         }
-        
+        /**
+     * Toggles the visibility of the password fields
+     */
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
@@ -1434,17 +1485,22 @@
             }
         }
 
+        /**
+* Logic to update the account credentials
+*/
         function updateAccount() {
             const newU = document.getElementById('setU').value.trim();
             const oldP = document.getElementById('oldP').value;
             const newP = document.getElementById('setP').value;
             const msgBox = document.getElementById('settingsMsg');
 
+            // 1. Basic Validation
             if (!newU || !oldP) {
                 showSettingsMessage("Username and current password are required.", "var(--danger)", "#fff5f5");
                 return;
             }
 
+            // 2. Find the index of the logged-in user in the global 'users' array
             const userIdx = users.findIndex(u => u.u === sessionUser);
 
             if (userIdx === -1) {
@@ -1452,13 +1508,15 @@
                 return;
             }
 
+            // 3. Verify Current Password
             if (users[userIdx].p !== oldP) {
                 showSettingsMessage("Incorrect current password.", "var(--danger)", "#fff5f5");
                 return;
             }
 
+            // 4. Update data
             users[userIdx].u = newU;
-            sessionUser = newU; 
+            sessionUser = newU; // Keep session synced with new username
 
             if (newP.trim() !== "") {
                 users[userIdx].p = newP;
@@ -1467,13 +1525,18 @@
                 showSettingsMessage("Success! Username updated.", "var(--accent)", "#e6fffa");
             }
 
-            save(); 
+            // 5. Commit to LocalStorage & Clear Inputs
+            save(); // Uses your existing save() function
             document.getElementById('oldP').value = "";
             document.getElementById('setP').value = "";
 
+            // Optional: Refresh any admin tables showing users
             if (typeof sync === "function") sync();
         }
 
+        /**
+         * Helper to show the status message
+         */
         function showSettingsMessage(text, color, bg) {
             const msgBox = document.getElementById('settingsMsg');
             msgBox.textContent = text;
@@ -1483,6 +1546,9 @@
             msgBox.style.border = `1px solid ${color}`;
         }
 
+        /**
+         * Ensures the toggle button works specifically for these inputs
+         */
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
@@ -1494,8 +1560,13 @@
             }
         }
 
+        // ==========================================
+        // ==========================================
+        // 7. EXPORT ENGINES (DASHBOARD, CSV, PDF)
+        // ==========================================
+
         function getFilteredData() {
-            
+            // Ensure we pick up the date values from your UI
             const startVal = document.getElementById('startDate')?.value || "";
             const endVal = document.getElementById('endDate')?.value || "";
 
@@ -1504,6 +1575,7 @@
                 if (!startVal && !endVal) return arr;
                 return arr.filter(item => {
                     if (!item.date) return false;
+                    // Direct string comparison works for YYYY-MM-DD
                     if (startVal && item.date < startVal) return false;
                     if (endVal && item.date > endVal) return false;
                     return true;
@@ -1516,6 +1588,7 @@
                 sales: filterByDate(db.sales),
                 exp: filterByDate(db.exp),
                 inv: db.inv || [],
+                // Calculate Low Stocks dynamically during export
                 low: (db.inv || []).filter(item => Number(item.stock || 0) < 10)
             };
         }
@@ -1528,26 +1601,30 @@
                 let csv = "POWER UPS BUSINESS REPORT\n";
                 csv += `Range: ${startVal || 'All'} to ${endVal || 'All'}\n\n`;
 
+                // SALES SECTION
                 if (t === "all" || t === "sales") {
-                    csv += "SALES REPORT\nInvoice,Date,Item,Qty,Total\n";
+                    csv += "--- SALES REPORT ---\nInvoice,Date,Item,Qty,Total\n";
                     sales.forEach(s => csv += `${s.invNo},${s.date},"${s.name}",${s.qty},${s.total}\n`);
                     csv += "\n";
                 }
 
+                // EXPENSES SECTION
                 if (t === "all" || t === "exp") {
-                    csv += "EXPENSES REPORT\nDate,Description,Amount\n";
+                    csv += "--- EXPENSES REPORT ---\nDate,Description,Amount\n";
                     exp.forEach(e => csv += `${e.date},"${e.desc}",${e.amt}\n`);
                     csv += "\n";
                 }
 
+                // INVENTORY SECTION
                 if (t === "all" || t === "inv") {
-                    csv += "FULL INVENTORY\nSKU,Name,Stock,Cost,Price\n";
+                    csv += "--- FULL INVENTORY ---\nSKU,Name,Stock,Cost,Price\n";
                     inv.forEach(i => csv += `${i.id},"${i.name}",${i.stock},${i.buy},${i.sell}\n`);
                     csv += "\n";
                 }
 
+                // LOW STOCKS SECTION (Fixed: Now exports correctly)
                 if (t === "all" || t === "low") {
-                    csv += "LOW STOCK ALERT (Under 10 units)\nSKU,Product,Current Stock,Status\n";
+                    csv += "--- LOW STOCK ALERT (Under 10 units) ---\nSKU,Product,Current Stock,Status\n";
                     if (low.length > 0) {
                         low.forEach(item => csv += `${item.id},"${item.name}",${item.stock},REORDER NOW\n`);
                     } else {
@@ -1571,6 +1648,7 @@
         async function exportDashboardPDF() {
             console.log("PDF Export Triggered...");
 
+            // 1. Check if libraries are actually loaded in the browser memory
             const jspdfLib = window.jspdf ? window.jspdf.jsPDF : null;
             if (!jspdfLib) {
                 return alert("PDF Library (jsPDF) not detected. Please check your internet connection.");
@@ -1583,7 +1661,8 @@
             if (!dash) return alert("Dashboard element (#dashSec) not found on this page.");
 
             try {
-                
+                // 2. Capture the element
+                // We use a slightly lower scale (1.5) to prevent browser crashes on older PCs
                 const canvas = await html2canvas(dash, {
                     scale: 1.5,
                     useCORS: true,
@@ -1591,21 +1670,26 @@
                     backgroundColor: "#ffffff"
                 });
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.8); 
+                const imgData = canvas.toDataURL('image/jpeg', 0.8); // Using JPEG reduces file size
 
+                // 3. Initialize PDF
                 const pdf = new jspdfLib('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
                 const pdfHeight = pdf.internal.pageSize.getHeight();
 
-                const imgWidth = pdfWidth - 20; 
+                // 4. Calculate dimensions to fit the page
+                const imgWidth = pdfWidth - 20; // 10mm margins
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+                // 5. Add Header
                 pdf.setFontSize(14);
                 pdf.setTextColor(0, 128, 128);
                 pdf.text("POWER UPS BUSINESS SUITE - DASHBOARD", 10, 10);
 
+                // 6. Add Image
                 pdf.addImage(imgData, 'JPEG', 10, 20, imgWidth, imgHeight);
 
+                // 7. Save
                 pdf.save(`Dashboard_Report_${new Date().getTime()}.pdf`);
                 console.log("PDF Export Successful");
 
@@ -1624,6 +1708,7 @@
 
                 const t = (type || "all").toLowerCase().replace("sec", "");
 
+                // ---------- FORMAT NUMBER ----------
                 const formatNum = (v) => {
                     return Number(v || 0).toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
@@ -1633,8 +1718,10 @@
 
                 let startY = 20;
 
+                // ---------- LOW STOCK DATA ----------
                 const lowStocks = (db.inv || []).filter(v => Number(v.stock || 0) < 10);
 
+                // ---------- HEADER ----------
                 const addHeader = () => {
                     doc.setFontSize(18);
                     doc.setTextColor(0, 128, 128);
@@ -1643,6 +1730,7 @@
                     startY += 15;
                 };
 
+                // ---------- TABLE RENDER ----------
                 const renderTable = (title, head, body, moneyCols = []) => {
                     if (!body || body.length === 0) return;
 
@@ -1668,7 +1756,7 @@
                         headStyles: {
                             fillColor: [0, 128, 128],
                             textColor: 255,
-                            halign: 'center' 
+                            halign: 'center' // This centers the text horizontally
                         },
                         didDrawPage: () => {
                             const pageHeight = doc.internal.pageSize.height;
@@ -1682,12 +1770,14 @@
                     startY = doc.lastAutoTable.finalY + 10;
                 };
 
+                // ---------- START ----------
                 addHeader();
 
+                // ---------- SALES ----------
                 if (t === "all" || t === "sales") {
                     const body = (sales || []).map(s => [
                         s.invNo || "-",
-                        fDate(s.date), 
+                        fDate(s.date), // <--- Use fDate here to convert YYYY-MM-DD to MM/DD/YYYY
                         s.name || "-",
                         s.qty || 0,
                         formatNum(s.total)
@@ -1709,9 +1799,10 @@
                     );
                 }
 
+                // ---------- EXPENSES ----------
                 if (t === "all" || t === "exp") {
                     const body = (exp || []).map(e => [
-                        fDate(e.date), 
+                        fDate(e.date), // <--- Use fDate here
                         e.desc || "-",
                         formatNum(e.amt)
                     ]);
@@ -1732,6 +1823,7 @@
                     );
                 }
 
+                // ---------- INVENTORY ----------
                 if (t === "all" || t === "inv") {
                     const body = (inv || []).map(i => [
                         i.id || "-",
@@ -1741,16 +1833,18 @@
                         formatNum(i.sell)
                     ]);
 
+                    // Calculate totals for Buy and Sell (Price * Stock)
                     const totalBuy = (inv || []).reduce((sum, i) => sum + (Number(i.buy || 0) * Number(i.stock || 0)), 0);
                     const totalSell = (inv || []).reduce((sum, i) => sum + (Number(i.sell || 0) * Number(i.stock || 0)), 0);
 
                     if (!body.length) {
                         body.push(["No inventory data", "", "", "", ""]);
                     } else {
+                        // Add footer row: SKU and Name are labels, Stock is empty, Costs are formatted
                         body.push([
-                            "TOTAL VALUE", 
-                            "",            
-                            "",            
+                            "TOTAL VALUE", // SKU column
+                            "",            // Name column
+                            "",            // Stock column (Excluded)
                             formatNum(totalBuy),
                             formatNum(totalSell)
                         ]);
@@ -1763,7 +1857,7 @@
                         [3, 4]
                     );
                 }
-                
+                // ---------- LOW STOCKS ----------
                 if (t === "all" || t === "low") {
                     const body = lowStocks.map(v => [
                         v.id || "-",
@@ -1784,6 +1878,7 @@
                     );
                 }
 
+                // ---------- SAVE ----------
                 doc.save(`PowerUps_${t}_Report.pdf`);
 
             } catch (err) {
@@ -1797,7 +1892,9 @@
         console.log("startVal:", startVal, "endVal:", endVal);
         console.log("RAW db.exp:", db.exp);
         console.log("FILTERED exp:", exp);
-        
+        // ==========================================
+        // 8. NAVIGATION & DOM EVENTS
+        // ==========================================
         document.querySelectorAll('.nav-item').forEach(n => n.onclick = () => {
             document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
             n.classList.add('active');
@@ -1808,7 +1905,7 @@
 
         document.getElementById('sID').onchange = (e) => document.getElementById('sName').value = e.target.value;
         document.getElementById('sName').onchange = (e) => document.getElementById('sID').value = e.target.value;
-       
+        // Update the "Last Active" timestamp every 10 seconds while the tab is open
         setInterval(() => {
             if (sessionUser) {
                 localStorage.setItem('Powerups21_lastActive', Date.now());
@@ -1816,6 +1913,7 @@
         }, 10000);
 
 
+        // Also update it when the user closes the tab
         window.onbeforeunload = () => {
             if (sessionUser) {
                 localStorage.setItem('Powerups21_lastActive', Date.now());
