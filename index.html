@@ -863,28 +863,37 @@
                 days = Math.ceil(Math.abs(new Date() - firstSale) / (1000 * 60 * 60 * 24)) + 1;
             }
 
-            // This listens for your database and sets the defaults correctly
-            rtdb.ref().on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
+            // 1. SET DATES IMMEDIATELY (Put this at the very top of your JS file)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
 
-                // 1. Set the default dates ONLY if they are currently empty
+            const defaultStart = `${year}-${month}-01`;
+            const defaultEnd = `${year}-${month}-${day}`;
+
+            // Function to initialize inputs
+            function setupDefaultDates() {
                 const sInput = document.getElementById('startDate');
                 const eInput = document.getElementById('endDate');
-
                 if (sInput && eInput && !sInput.value) {
-                    const now = new Date();
-                    const year = now.getFullYear();
-                    const month = String(now.getMonth() + 1).padStart(2, '0');
-                    const day = String(now.getDate()).padStart(2, '0');
-
-                    sInput.value = `${year}-${month}-01`; // April 01
-                    eInput.value = `${year}-${month}-${day}`; // April 24
+                    sInput.value = defaultStart;
+                    eInput.value = defaultEnd;
                 }
+            }
 
-                // 2. Now run your existing update function
-                // This ensures data is actually there when the filter runs
-                updateDash();
+            // 2. RUN SETUP
+            setupDefaultDates();
+
+            // 3. YOUR DATABASE LISTENER
+            rtdb.ref().on('value', (snapshot) => {
+                // Ensure dates are set before running the dashboard logic
+                setupDefaultDates();
+
+                // Process your data here...
+                // ... (your existing data parsing code)
+
+                updateDash(); // Now it will have the dates on the first run!
             });
 
             // Metrics
