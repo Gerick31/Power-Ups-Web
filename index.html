@@ -399,9 +399,9 @@
         .toggle-pass-modern {
             position: absolute;
             right: 12px;
-            background: #fff;
-            border: 1px solid #dcdfe6;
-            padding: 4px 10px;
+            background: none;
+            border: none;
+            padding: 0;
             border-radius: 5px;
             cursor: pointer;
             font-size: 10px;
@@ -411,8 +411,9 @@
         }
 
             .toggle-pass-modern:hover {
-                color: var(--primary);
-                border-color: var(--primary);
+                color: transparent;
+                border-color: transparent;
+                background: transparent;
             }
 
         /* Centered Primary Button with Hover */
@@ -464,7 +465,7 @@
 
             <div class="password-wrapper">
                 <input type="password" id="passIn" placeholder="Password" onkeypress="handleEnter(event)">
-                <span onclick="togglePasswordVisibility('passIn', this)">☀️</span>
+                <span onclick="togglePasswordVisibility('passIn', this)"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z" /></svg></span>
             </div>
 
             <button class="primary-btn" style="width:100%" onclick="handleLogin()">Login</button>
@@ -483,7 +484,7 @@
 
             <div class="password-wrapper">
                 <input type="password" id="regPass" placeholder="Password" onkeypress="handleRegEnter(event)">
-                <span onclick="togglePasswordVisibility('regPass', this)">☀️</span>
+                <span onclick="togglePasswordVisibility('regPass', this)"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z" /></svg></span>
             </div>
 
             <button class="primary-btn" style="width:100%" onclick="handleReg()">Submit Request</button>
@@ -565,7 +566,7 @@
                     </div>
                     <div class="action-bar">
                         <button type="submit" class="primary-btn" id="sBtn">Record Sale</button>
-                        <input type="text" class="search-box" placeholder="Search Sales..." onkeyup="filterTable('saleTableBody', this.value)">
+                        <input type="text" class="search-box" placeholder="🔍Search Sales..." onkeyup="filterTable('saleTableBody', this.value)">
                         <button class="btn-export" style="margin-left:auto;" onclick="exportData('Sales')">📥 Export CSV</button>
                         <button type="button" class="btn-pdf" onclick="exportPDF('sales')">📄 Export PDF</button>
                     </div>
@@ -595,7 +596,7 @@
                     </div>
                     <div class="action-bar">
                         <button type="submit" class="primary-btn" id="iBtn">Update Stock</button>
-                        <input type="text" class="search-box" placeholder="Search Inventory..." onkeyup="filterTable('invTableBody', this.value)">
+                        <input type="text" class="search-box" placeholder="🔍Search Inventory..." onkeyup="filterTable('invTableBody', this.value)">
                         <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('inv')">📥 Export CSV</button>
                         <button type="button" class="btn-pdf" onclick="exportPDF('inv')">📄 Export PDF</button>
                     </div>
@@ -616,7 +617,7 @@
                     <div id="headTotalLow" style="font-weight:bold;">Low Stock Items: 0</div>
                 </div>
                 <div class="action-bar">
-                    <input type="text" class="search-box" placeholder="Search Low Stocks..." onkeyup="filterTable('lowTableBody', this.value)">
+                    <input type="text" class="search-box" placeholder="🔍Search Low Stocks..." onkeyup="filterTable('lowTableBody', this.value)">
                     <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('low')">📥 Export CSV</button>
                     <button type="button" class="btn-pdf" onclick="exportPDF('low')">📄 Export PDF</button>
                 </div>
@@ -650,7 +651,7 @@
                     </div>
                     <div class="action-bar">
                         <button type="submit" class="primary-btn" id="eBtn">Record Expense</button>
-                        <input type="text" id="expSearch" class="search-box" placeholder="Search Expenses..." onkeyup="filterTable('expTableBody', this.value)">
+                        <input type="text" id="expSearch" class="search-box" placeholder="🔍Search Expenses..." onkeyup="filterTable('expTableBody', this.value)">
                         <button type="button" class="btn-csv" style="margin-left:auto; " onclick="exportData('exp')">📥 Export CSV</button>
                         <button type="button" class="btn-pdf" onclick="exportPDF('exp')">📄 Export PDF</button>
                     </div>
@@ -704,7 +705,7 @@
                         <label style="display:block; font-size:11px; font-weight:700; color:#7f8c8d; margin-bottom:8px; text-transform: uppercase;">Current Password</label>
                         <div class="password-wrapper-modern">
                             <input type="password" id="oldP" class="input-field-modern" placeholder="Verify old password">
-                            <button type="button" class="toggle-pass-modern" onclick="togglePassView('oldP', this)">SHOW</button>
+                            <button type="button" class="toggle-pass-modern" style="background: none" onclick="togglePassView('oldP', this)"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z" /></svg></button>
                         </div>
                     </div>
 
@@ -712,7 +713,7 @@
                         <label style="display:block; font-size:11px; font-weight:700; color:#7f8c8d; margin-bottom:8px; text-transform: uppercase;">New Password</label>
                         <div class="password-wrapper-modern">
                             <input type="password" id="setP" class="input-field-modern" placeholder="Leave blank if no change">
-                            <button type="button" class="toggle-pass-modern" onclick="togglePassView('setP', this)">SHOW</button>
+                            <button type="button" class="toggle-pass-modern" style="background: none" onclick="togglePassView('setP', this)"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z" /></svg></button>
                         </div>
                     </div>
 
@@ -1441,10 +1442,14 @@
 
         function togglePasswordVisibility(inputId, iconElement) {
             const passInput = document.getElementById(inputId);
+
             if (passInput.type === 'password') {
-                passInput.type = 'text'; iconElement.textContent = '🌙';
+                passInput.type = 'text';
+                // Use innerHTML so the browser renders the SVG tags
+                iconElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M768-90 638-220q-38 12-77.5 20t-80.5 8q-143 0-261.5-77.5T48-480q17-52 57-101.5t85-87.5L90-769l51-51 678 679-51 51ZM480-312q14 0 28-3t28-7L322-536q-3 14-6.5 28t-3.5 28q0 70 49 119t119 49Zm290 20L637-425q5-13 8-27t3-28q0-70-49-119t-119-49q-14 0-27.5 2.5T425-638L322-741q38-15 77.5-21t80.5-6q143 0 261.5 77.5T912-480q-22 57-58.5 103.5T770-292ZM575-487l-88-89q20-2 36 4.5t30 20.5q12 12 18 29.5t4 34.5Z"/></svg>';
             } else {
-                passInput.type = 'password'; iconElement.textContent = '☀️';
+                passInput.type = 'password';
+                iconElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z"/></svg>';
             }
         }
 
@@ -1498,12 +1503,17 @@
      */
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
+
+            // Using backticks (``) allows you to use double quotes inside the string
+            const showIcon = `<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M768-90 638-220q-38 12-77.5 20t-80.5 8q-143 0-261.5-77.5T48-480q17-52 57-101.5t85-87.5L90-769l51-51 678 679-51 51ZM480-312q14 0 28-3t28-7L322-536q-3 14-6.5 28t-3.5 28q0 70 49 119t119 49Zm290 20L637-425q5-13 8-27t3-28q0-70-49-119t-119-49q-14 0-27.5 2.5T425-638L322-741q38-15 77.5-21t80.5-6q143 0 261.5 77.5T912-480q-22 57-58.5 103.5T770-292ZM575-487l-88-89q20-2 36 4.5t30 20.5q12 12 18 29.5t4 34.5Z"/></svg>`;
+            const hideIcon = `<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z"/></svg>`;
+
             if (input.type === "password") {
                 input.type = "text";
-                btn.textContent = "HIDE";
+                btn.innerHTML = showIcon; // Use innerHTML to render the SVG
             } else {
                 input.type = "password";
-                btn.textContent = "SHOW";
+                btn.innerHTML = hideIcon; // Use innerHTML to render the SVG
             }
         }
 
@@ -1573,12 +1583,14 @@
          */
         function togglePassView(inputId, btn) {
             const input = document.getElementById(inputId);
+
             if (input.type === "password") {
                 input.type = "text";
-                btn.textContent = "HIDE";
+                // Backticks allow double quotes inside the string
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M768-90 638-220q-38 12-77.5 20t-80.5 8q-143 0-261.5-77.5T48-480q17-52 57-101.5t85-87.5L90-769l51-51 678 679-51 51ZM480-312q14 0 28-3t28-7L322-536q-3 14-6.5 28t-3.5 28q0 70 49 119t119 49Zm290 20L637-425q5-13 8-27t3-28q0-70-49-119t-119-49q-14 0-27.5 2.5T425-638L322-741q38-15 77.5-21t80.5-6q143 0 261.5 77.5T912-480q-22 57-58.5 103.5T770-292ZM575-487l-88-89q20-2 36 4.5t30 20.5q12 12 18 29.5t4 34.5Z"/></svg>`;
             } else {
                 input.type = "password";
-                btn.textContent = "SHOW";
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#008080"><path d="M599-361q49-49 49-119t-49-119q-49-49-119-49t-119 49q-49 49-49 119t49 119q49 49 119 49t119-49Zm-187-51q-28-28-28-68t28-68q28-28 68-28t68 28q28 28 28 68t-28 68q-28 28-68 28t-68-28ZM220-270.5Q103-349 48-480q55-131 172-209.5T480-768q143 0 260 78.5T912-480q-55 131-172 209.5T480-192q-143 0-260-78.5Z"/></svg>`;
             }
         }
 
